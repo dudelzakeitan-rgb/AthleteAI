@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "AthleteAI",
+    "slug": "athlete-ai",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#3b82f6"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.athleteai.app"
+    },
+    "android": {
+      "package": "com.athleteai.app"
+    },
+    "plugins": [
+      "expo-image-picker"
+    ],
+    "scheme": "athleteai"
+  }
+}
