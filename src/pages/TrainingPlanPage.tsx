@@ -181,7 +181,7 @@ export function TrainingPlanPage() {
             )}
 
             <Section
-              title="Water Training"
+              title={sportId === 'gym' ? 'Gym Workout' : sportId === 'swimming' ? 'Water Training' : `${sport.name} Training`}
               icon={<Waves className="w-5 h-5" />}
               expanded={expandedSection === 'water'}
               onToggle={() => setExpandedSection(expandedSection === 'water' ? '' : 'water')}
@@ -216,7 +216,7 @@ export function TrainingPlanPage() {
             </Section>
 
             <Section
-              title="Dryland Training"
+              title={sportId === 'gym' ? 'Conditioning & Mobility' : 'Gym Training'}
               icon={<Dumbbell className="w-5 h-5" />}
               expanded={expandedSection === 'dryland'}
               onToggle={() => setExpandedSection(expandedSection === 'dryland' ? '' : 'dryland')}

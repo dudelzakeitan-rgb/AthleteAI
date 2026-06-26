@@ -135,7 +135,7 @@ export function PlanPreviewScreen() {
                 {sport.id === 'swimming' ? <Waves size={18} color="#3b82f6" /> : <Activity size={18} color="#3b82f6" />}
               </View>
               <Text className="font-bold text-gray-900 text-base">
-                {sport.id === 'swimming' ? 'Water Training' : `${sport.name} Training`}
+                {sport.id === 'swimming' ? 'Water Training' : sport.id === 'gym' ? 'Gym Workout' : `${sport.name} Training`}
               </Text>
             </View>
             {[
@@ -165,7 +165,9 @@ export function PlanPreviewScreen() {
               <View className="w-9 h-9 rounded-xl bg-emerald-100 items-center justify-center mr-3">
                 <Dumbbell size={18} color="#10b981" />
               </View>
-              <Text className="font-bold text-gray-900 text-base">Gym Training</Text>
+              <Text className="font-bold text-gray-900 text-base">
+                {sport.id === 'gym' ? 'Conditioning & Mobility' : 'Gym Training'}
+              </Text>
             </View>
             {[
               { label: 'Strength', exercises: plan.drylandTraining.strength, color: '#f43f5e' },

@@ -7,6 +7,7 @@ import {
   DailyTask,
   WeeklyTarget,
   Milestone,
+  DrylandExercise,
 } from '../types';
 
 interface GenerationConfig {
@@ -370,6 +371,171 @@ function adjustByDuration(base: Partial<TrainingPlan>, duration: number): Partia
 
   return base;
 }
+
+const gymPlans: Record<string, Partial<TrainingPlan>> = {
+  build_muscle: {
+    waterTraining: {
+      warmup: [
+        { name: 'Treadmill / bike warm-up', distance: '5 min', repetitions: 1, rest: '0s', technique: 'Low intensity to raise heart rate and body temperature', difficulty: 'easy' },
+        { name: 'Dynamic joint circles', distance: '3 min', repetitions: 1, rest: '0s', technique: 'Shoulder, hip and ankle circles — full range of motion', difficulty: 'easy' },
+        { name: 'Empty-bar activation', distance: '2 sets', repetitions: 2, rest: '30s', technique: 'Squat, RDL and press with just the bar to groove patterns', difficulty: 'easy' },
+      ],
+      mainSet: [
+        { name: 'Barbell Bench Press', distance: '8-12 reps', repetitions: 4, rest: '90s', technique: 'Retract scapula, bar to lower chest, press up and slightly back', difficulty: 'hard' },
+        { name: 'Barbell Back Squat', distance: '10 reps', repetitions: 4, rest: '2 min', technique: 'Brace core, break at hips and knees together, drive through heels', difficulty: 'hard' },
+        { name: 'Barbell Bent-Over Row', distance: '8-12 reps', repetitions: 4, rest: '90s', technique: 'Hinge at hips, pull bar to lower ribcage, squeeze shoulder blades', difficulty: 'hard' },
+        { name: 'Dumbbell Overhead Press', distance: '10-12 reps', repetitions: 3, rest: '75s', technique: 'Neutral spine, press overhead, lock out elbows at top', difficulty: 'medium' },
+      ],
+      drillSet: [
+        { name: 'Dumbbell Flyes', distance: '12-15 reps', repetitions: 3, rest: '60s', technique: 'Slight bend in elbows, arc motion, feel the chest stretch at bottom', difficulty: 'medium' },
+        { name: 'Lat Pulldown', distance: '12 reps', repetitions: 3, rest: '60s', technique: 'Pull bar to upper chest, elbows drive down, arch slightly back', difficulty: 'medium' },
+        { name: 'Dumbbell Bicep Curls', distance: '12-15 reps', repetitions: 3, rest: '45s', technique: 'Supinate at top, slow eccentric, no swinging', difficulty: 'easy' },
+        { name: 'Tricep Rope Pushdown', distance: '12-15 reps', repetitions: 3, rest: '45s', technique: 'Keep elbows pinned, extend fully, squeeze at bottom', difficulty: 'easy' },
+      ],
+      cooldown: [
+        { name: 'Full-body static stretch', distance: '10 min', repetitions: 1, rest: '0s', technique: 'Hold each stretch 30 s: chest, lats, quads, hamstrings, hip flexors', difficulty: 'easy' },
+      ],
+    },
+  },
+  lose_weight: {
+    waterTraining: {
+      warmup: [
+        { name: 'Jump rope / jog in place', distance: '3 min', repetitions: 1, rest: '0s', technique: 'Moderate pace, get heart rate to 60-65% max', difficulty: 'easy' },
+        { name: 'Bodyweight squat + arm swing', distance: '10 reps', repetitions: 2, rest: '20s', technique: 'Full squat depth, swing arms overhead to open chest', difficulty: 'easy' },
+      ],
+      mainSet: [
+        { name: 'Goblet Squat to Press Circuit', distance: '15 reps', repetitions: 4, rest: '45s', technique: 'Squat deep, stand and press overhead, keep core engaged', difficulty: 'medium' },
+        { name: 'Dumbbell Thrusters', distance: '12 reps', repetitions: 4, rest: '60s', technique: 'Front squat into overhead press in one fluid movement', difficulty: 'hard' },
+        { name: 'Kettlebell / DB Swings', distance: '20 reps', repetitions: 4, rest: '45s', technique: 'Hip hinge drive, not a squat, snap hips at top, float arms', difficulty: 'hard' },
+        { name: 'Burpees', distance: '10 reps', repetitions: 3, rest: '60s', technique: 'Chest to floor, explosive jump, land softly', difficulty: 'hard' },
+      ],
+      drillSet: [
+        { name: 'HIIT Cardio Intervals', distance: '30s on / 30s off', repetitions: 8, rest: '0s', technique: 'Max effort on / active rest off — rowing, bike or sprints', difficulty: 'hard' },
+        { name: 'Mountain Climbers', distance: '20 reps', repetitions: 3, rest: '30s', technique: 'Flat back, drive knees fast, shoulders over wrists', difficulty: 'medium' },
+        { name: 'Jump Lunges', distance: '10 each leg', repetitions: 3, rest: '45s', technique: 'Explode off back foot, land softly with front knee at 90°', difficulty: 'medium' },
+      ],
+      cooldown: [
+        { name: 'Low-intensity walk / bike', distance: '5 min', repetitions: 1, rest: '0s', technique: 'Bring heart rate below 100 bpm before stretching', difficulty: 'easy' },
+        { name: 'Full-body stretch', distance: '8 min', repetitions: 1, rest: '0s', technique: 'Hip flexors, quads, hamstrings, shoulders — hold 30 s each', difficulty: 'easy' },
+      ],
+    },
+  },
+  strength: {
+    waterTraining: {
+      warmup: [
+        { name: 'Bike warm-up', distance: '5 min', repetitions: 1, rest: '0s', technique: 'Easy effort, loosen hips and ankles for heavy squatting and pulling', difficulty: 'easy' },
+        { name: 'Progressive bar warm-up sets', distance: '5 reps', repetitions: 4, rest: '60s', technique: 'Increase weight each set: bar → 40% → 60% → 80% of working weight', difficulty: 'easy' },
+      ],
+      mainSet: [
+        { name: 'Barbell Back Squat', distance: '3-5 reps', repetitions: 5, rest: '3 min', technique: 'High bar or low bar, brace hard, knees track toes, full depth', difficulty: 'hard' },
+        { name: 'Conventional Deadlift', distance: '3-5 reps', repetitions: 4, rest: '3 min', technique: 'Bar over mid-foot, flat back, leg press the floor, lockout glutes', difficulty: 'hard' },
+        { name: 'Barbell Bench Press', distance: '3-5 reps', repetitions: 5, rest: '3 min', technique: 'Tight arch, bar to lower chest, leg drive, lockout elbows fully', difficulty: 'hard' },
+        { name: 'Barbell Overhead Press', distance: '5 reps', repetitions: 4, rest: '2 min', technique: 'Bar from clavicle, push head through at top, full lockout', difficulty: 'hard' },
+      ],
+      drillSet: [
+        { name: 'Paused Box Squat', distance: '3 reps', repetitions: 3, rest: '2 min', technique: '2 s pause on box, maintain tension, explode up', difficulty: 'medium' },
+        { name: 'Romanian Deadlift', distance: '8 reps', repetitions: 3, rest: '90s', technique: 'Hip hinge, slight knee bend, feel hamstring stretch, squeeze glutes up', difficulty: 'medium' },
+        { name: 'Close-Grip Bench Press', distance: '6-8 reps', repetitions: 3, rest: '90s', technique: 'Hands shoulder-width, elbows tucked, tricep-dominant pressing', difficulty: 'medium' },
+      ],
+      cooldown: [
+        { name: 'Mobility & foam rolling', distance: '12 min', repetitions: 1, rest: '0s', technique: 'Thoracic spine, hip flexors, glutes — key areas for heavy compound lifts', difficulty: 'easy' },
+      ],
+    },
+  },
+  fitness: {
+    waterTraining: {
+      warmup: [
+        { name: 'Full-body dynamic warm-up', distance: '7 min', repetitions: 1, rest: '0s', technique: 'Leg swings, arm circles, hip circles, thoracic twists, inchworms', difficulty: 'easy' },
+        { name: 'Bodyweight activation circuit', distance: '10 reps each', repetitions: 1, rest: '0s', technique: 'Squat, push-up, glute bridge, row — one round, steady pace', difficulty: 'easy' },
+      ],
+      mainSet: [
+        { name: 'Full-Body Compound Circuit', distance: '12 reps', repetitions: 4, rest: '60s', technique: 'Squat → Row → Push Press → Hinge — minimal rest between moves', difficulty: 'medium' },
+        { name: 'Dumbbell Lunges + Curl', distance: '10 each leg', repetitions: 3, rest: '75s', technique: 'Reverse lunge, curl at bottom, step back up — compound movement', difficulty: 'medium' },
+        { name: 'Cable or Band Row', distance: '12-15 reps', repetitions: 3, rest: '60s', technique: 'Seated or standing, full retraction, controlled release', difficulty: 'medium' },
+        { name: 'Dumbbell Bench or Floor Press', distance: '12 reps', repetitions: 3, rest: '60s', technique: 'Full range, control the descent, press through chest', difficulty: 'medium' },
+      ],
+      drillSet: [
+        { name: 'Step-ups + Balance hold', distance: '10 each leg', repetitions: 3, rest: '45s', technique: 'Drive knee up at top, 1 s balance hold, controlled step down', difficulty: 'medium' },
+        { name: 'Plank to Push-up', distance: '8 reps', repetitions: 3, rest: '45s', technique: 'From forearm plank, press up one hand at a time, stay level hips', difficulty: 'medium' },
+        { name: 'Farmer Carry', distance: '30m', repetitions: 3, rest: '60s', technique: 'Heavy dumbbells, tall spine, big steps, core rigid', difficulty: 'medium' },
+      ],
+      cooldown: [
+        { name: 'Full-body stretch + breathing', distance: '10 min', repetitions: 1, rest: '0s', technique: 'All major muscle groups, slow diaphragmatic breaths, relax fully', difficulty: 'easy' },
+      ],
+    },
+  },
+};
+
+const gymDrylandExercises: Record<string, { strength: DrylandExercise[]; mobility: DrylandExercise[]; core: DrylandExercise[] }> = {
+  build_muscle: {
+    strength: [
+      { name: 'Leg Press', type: 'strength', sets: 3, reps: '12-15', description: 'Foot plate at shoulder width, full range, drive through heels', difficulty: 'medium', muscleGroups: ['quadriceps', 'glutes'] },
+      { name: 'Incline Dumbbell Press', type: 'strength', sets: 3, reps: '10-12', description: '30° incline, arc motion, feel upper chest stretch', difficulty: 'medium', muscleGroups: ['upper chest', 'shoulders'] },
+      { name: 'Cable Face Pulls', type: 'strength', sets: 3, reps: '15', description: 'Pull to forehead, elbows high, external rotation at end', difficulty: 'easy', muscleGroups: ['rear delts', 'traps'] },
+    ],
+    mobility: [
+      { name: 'Lat stretch on rack', type: 'mobility', sets: 2, reps: '30s each side', description: 'Grab rack, sit back, let lat stretch fully', difficulty: 'easy' },
+      { name: 'Chest doorway stretch', type: 'mobility', sets: 2, reps: '30s', description: 'Arms at 90°, step forward, open chest', difficulty: 'easy' },
+      { name: 'Hip flexor lunge stretch', type: 'mobility', sets: 2, reps: '45s each', description: 'Deep lunge, press hip forward, reach overhead', difficulty: 'easy' },
+    ],
+    core: [
+      { name: 'Cable Crunch', type: 'core', sets: 3, reps: '15-20', description: 'Pull elbow to knees, round spine, feel abs contract', difficulty: 'medium' },
+      { name: 'Hanging Knee Raises', type: 'core', sets: 3, reps: '12-15', description: 'Hang from bar, curl knees to chest, control the descent', difficulty: 'medium' },
+      { name: 'Plank Hold', type: 'core', sets: 3, reps: '45-60s', description: 'Body straight, engage glutes, breathe normally', difficulty: 'medium' },
+    ],
+  },
+  lose_weight: {
+    strength: [
+      { name: 'Bodyweight Squat Jumps', type: 'strength', sets: 3, reps: '15', description: 'Squat then explode up, land softly, absorb with legs', difficulty: 'hard', muscleGroups: ['quadriceps', 'glutes', 'calves'] },
+      { name: 'Push-up Variations', type: 'strength', sets: 3, reps: '12-15', description: 'Standard, wide, or narrow — full range each rep', difficulty: 'medium', muscleGroups: ['chest', 'triceps', 'core'] },
+      { name: 'Inverted Row', type: 'strength', sets: 3, reps: '12', description: 'Horizontal pull, body rigid, pull chest to bar', difficulty: 'medium', muscleGroups: ['back', 'biceps'] },
+    ],
+    mobility: [
+      { name: 'World\'s Greatest Stretch', type: 'mobility', sets: 2, reps: '5 each side', description: 'Lunge + rotation + overhead reach — opens hips and thoracic', difficulty: 'easy' },
+      { name: 'Hip circle + hip flexor', type: 'mobility', sets: 2, reps: '30s each', description: 'Standing hip circles then deep lunge hold each side', difficulty: 'easy' },
+      { name: 'Seated hamstring stretch', type: 'mobility', sets: 2, reps: '30s each', description: 'Reach forward, flat back, feel hamstrings lengthen', difficulty: 'easy' },
+    ],
+    core: [
+      { name: 'Mountain Climbers', type: 'core', sets: 3, reps: '30s', description: 'Shoulders over wrists, drive knees fast alternating', difficulty: 'hard' },
+      { name: 'V-ups', type: 'core', sets: 3, reps: '12-15', description: 'Lift legs and torso simultaneously, reach hands to feet', difficulty: 'medium' },
+      { name: 'Side Plank', type: 'core', sets: 3, reps: '30s each side', description: 'Stack feet, raise hips, keep body in line', difficulty: 'medium' },
+    ],
+  },
+  strength: {
+    strength: [
+      { name: 'Deficit Deadlift', type: 'strength', sets: 3, reps: '3-4', description: 'Stand on 2-3 cm plate, increases range to build power off floor', difficulty: 'hard', muscleGroups: ['hamstrings', 'glutes', 'back'] },
+      { name: 'Front Squat', type: 'strength', sets: 3, reps: '4-5', description: 'Rack position, upright torso, quad dominant, builds squat strength', difficulty: 'hard', muscleGroups: ['quadriceps', 'core'] },
+      { name: 'Push Press', type: 'strength', sets: 3, reps: '5', description: 'Slight dip, drive through legs, lock out overhead', difficulty: 'hard', muscleGroups: ['shoulders', 'triceps', 'legs'] },
+    ],
+    mobility: [
+      { name: 'Hip 90/90 stretch', type: 'mobility', sets: 2, reps: '60s each side', description: 'Internal and external rotation, key for squat depth', difficulty: 'easy' },
+      { name: 'Thoracic extension on foam roller', type: 'mobility', sets: 2, reps: '10 reps', description: 'Roller mid-back, hands behind head, arch over roller', difficulty: 'easy' },
+      { name: 'Ankle mobility wall drill', type: 'mobility', sets: 2, reps: '10 each', description: 'Knee over toe to wall, improves squat depth and knee tracking', difficulty: 'easy' },
+    ],
+    core: [
+      { name: 'Ab Wheel Rollouts', type: 'core', sets: 3, reps: '8-10', description: 'Kneel, roll out slowly, maintain flat back, pull back with lats', difficulty: 'hard' },
+      { name: 'Weighted Plank', type: 'core', sets: 3, reps: '30-45s', description: 'Plate on back, body rigid, breathe without losing bracing', difficulty: 'medium' },
+      { name: 'Pallof Press', type: 'core', sets: 3, reps: '10 each side', description: 'Anti-rotation core press, resist twisting, control throughout', difficulty: 'medium' },
+    ],
+  },
+  fitness: {
+    strength: [
+      { name: 'Single-Leg Deadlift', type: 'strength', sets: 3, reps: '10 each', description: 'Balance and posterior chain — hinge on one leg, keep back flat', difficulty: 'medium', muscleGroups: ['hamstrings', 'glutes', 'balance'] },
+      { name: 'Dumbbell Complex', type: 'strength', sets: 3, reps: '6 each move', description: 'Curl → Press → Row without putting weights down — full body', difficulty: 'medium', muscleGroups: ['full body'] },
+      { name: 'Resistance Band Pull-apart', type: 'strength', sets: 3, reps: '20', description: 'Arms extended, pull band apart, squeeze shoulder blades', difficulty: 'easy', muscleGroups: ['rear delts', 'traps', 'posture'] },
+    ],
+    mobility: [
+      { name: 'Cat-cow + Thread the needle', type: 'mobility', sets: 2, reps: '8 each', description: 'Spinal mobility and rotation — flow between positions', difficulty: 'easy' },
+      { name: 'Standing hip hinge drill', type: 'mobility', sets: 2, reps: '10', description: 'Dowel on back, hinge only at hips, practise the movement pattern', difficulty: 'easy' },
+      { name: 'Overhead side bend', type: 'mobility', sets: 2, reps: '8 each side', description: 'Arms overhead, side bend slowly, feel lateral stretch', difficulty: 'easy' },
+    ],
+    core: [
+      { name: 'Dead Bug', type: 'core', sets: 3, reps: '10 each side', description: 'Lower back pressed to floor, extend opposite arm and leg slowly', difficulty: 'medium' },
+      { name: 'Bird Dog', type: 'core', sets: 3, reps: '10 each side', description: 'Extend arm and opposite leg, hold 2 s, stable hips throughout', difficulty: 'medium' },
+      { name: 'Bicycle Crunches', type: 'core', sets: 3, reps: '20 total', description: 'Slow and controlled, elbow to opposite knee, full rotation', difficulty: 'medium' },
+    ],
+  },
+};
 
 const genericSportPlan: Partial<TrainingPlan> = {
   waterTraining: {
@@ -880,6 +1046,9 @@ export function generateTrainingPlan(config: GenerationConfig): TrainingPlan {
   if (config.sport === 'swimming') {
     const swimmingPlan = swimmingPlans[config.improvement] || swimmingPlans.technique;
     basePlan = JSON.parse(JSON.stringify(swimmingPlan));
+  } else if (config.sport === 'gym') {
+    const gymPlan = gymPlans[config.improvement] || gymPlans.fitness;
+    basePlan = JSON.parse(JSON.stringify(gymPlan));
   } else {
     const sportPlan = sportSpecificPlans[config.sport]?.[config.improvement]
       || sportSpecificPlans[config.sport]?.default
@@ -893,6 +1062,10 @@ export function generateTrainingPlan(config: GenerationConfig): TrainingPlan {
   const performanceAnalysis = generatePerformanceAnalysis(config);
   const weeklyGoals = generateWeeklyGoals(config);
 
+  const drylandExercises = config.sport === 'gym'
+    ? (gymDrylandExercises[config.improvement] || gymDrylandExercises.fitness)
+    : defaultDrylandExercises;
+
   return {
     waterTraining: basePlan.waterTraining || {
       warmup: [],
@@ -900,7 +1073,7 @@ export function generateTrainingPlan(config: GenerationConfig): TrainingPlan {
       drillSet: [],
       cooldown: [],
     },
-    drylandTraining: defaultDrylandExercises,
+    drylandTraining: drylandExercises,
     nutrition: defaultNutrition,
     tips: generateTips(config),
     performanceAnalysis,
@@ -916,6 +1089,20 @@ function generateTips(config: GenerationConfig): string[] {
   if (config.sport === 'swimming') {
     tips.push('Focus on technique before intensity—bad habits are harder to break later');
     tips.push('Video analysis every few weeks helps track form improvements');
+  } else if (config.sport === 'gym') {
+    tips.push('Progressive overload is the #1 driver of results — add weight or reps every week');
+    if (config.improvement === 'build_muscle') {
+      tips.push('Eat in a slight calorie surplus with 1.6-2.2g protein per kg bodyweight daily');
+      tips.push('Prioritize compound lifts — they stimulate the most muscle growth per session');
+    } else if (config.improvement === 'lose_weight') {
+      tips.push('Nutrition drives fat loss — training preserves muscle while you are in a deficit');
+      tips.push('Track your calories for at least 2 weeks to understand your intake');
+    } else if (config.improvement === 'strength') {
+      tips.push('Rest fully between heavy sets — 2-3 minutes is not wasted time, it is necessary');
+      tips.push('Film your lifts from the side to check depth and bar path');
+    } else {
+      tips.push('Consistency over perfection — showing up regularly beats the perfect plan');
+    }
   }
 
   if (config.questionnaire.skillLevel === 'beginner') {
@@ -924,7 +1111,7 @@ function generateTips(config: GenerationConfig): string[] {
   }
 
   if (config.questionnaire.trainingDuration <= 45) {
-    tips.push('With limited time, prioritize technique work over volume');
+    tips.push('With limited time, prioritize compound movements and cut isolation work');
   }
 
   tips.push('Listen to your body—quality over quantity every time');

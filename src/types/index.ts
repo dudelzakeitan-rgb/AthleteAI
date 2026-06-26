@@ -1,4 +1,4 @@
-export type Sport = 'swimming' | 'football' | 'tennis' | 'basketball' | 'running' | 'cycling' | 'volleyball';
+export type Sport = 'swimming' | 'football' | 'tennis' | 'basketball' | 'running' | 'cycling' | 'volleyball' | 'gym';
 
 export type SwimmingStroke = 'freestyle' | 'breaststroke' | 'backstroke' | 'butterfly';
 
@@ -296,6 +296,19 @@ export const sportsConfig: SportConfig[] = [
       { id: 'block', label: 'Block', icon: 'Shield' },
       { id: 'passing', label: 'Passing', icon: 'ArrowRight' },
       { id: 'jump', label: 'Jump', icon: 'Activity' },
+    ],
+  },
+  {
+    id: 'gym',
+    name: 'Gym',
+    icon: 'Dumbbell',
+    color: 'from-zinc-500 to-stone-600',
+    bgGradient: 'from-zinc-600 via-stone-500 to-zinc-700',
+    improvements: [
+      { id: 'build_muscle', label: 'Build Muscle', icon: 'TrendingUp' },
+      { id: 'lose_weight', label: 'Lose Weight', icon: 'Flame' },
+      { id: 'strength', label: 'Strength', icon: 'Zap' },
+      { id: 'fitness', label: 'General Fitness', icon: 'Heart' },
     ],
   },
 ];

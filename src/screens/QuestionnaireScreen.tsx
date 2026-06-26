@@ -14,7 +14,18 @@ type Route = RouteProp<RootStackParamList, 'Questionnaire'>;
 
 const TOTAL_STEPS = 6;
 
-const equipmentOptions = [
+const gymEquipmentOptions = [
+  { id: 'barbell', label: 'Barbell' },
+  { id: 'dumbbells', label: 'Dumbbells' },
+  { id: 'cables', label: 'Cable Machine' },
+  { id: 'resistance_bands', label: 'Bands' },
+  { id: 'pull_up_bar', label: 'Pull-up Bar' },
+  { id: 'machines', label: 'Machines' },
+  { id: 'cardio_equipment', label: 'Cardio Equipment' },
+  { id: 'bodyweight', label: 'Bodyweight Only' },
+];
+
+const defaultEquipmentOptions = [
   { id: 'pool', label: 'Pool' },
   { id: 'fins', label: 'Fins' },
   { id: 'paddles', label: 'Paddles' },
@@ -31,12 +42,16 @@ export function QuestionnaireScreen() {
   const { setQuestionnaire } = useApp();
   const { sportId, improvementId } = route.params;
 
+  const isGym = sportId === 'gym';
+  const equipmentOptions = isGym ? gymEquipmentOptions : defaultEquipmentOptions;
+  const defaultEquipment = isGym ? ['bodyweight'] : ['pool'];
+
   const [step, setStep] = useState(1);
   const [age, setAge] = useState('');
   const [skillLevel, setSkillLevel] = useState<SkillLevel>('intermediate');
   const [sessionsPerWeek, setSessionsPerWeek] = useState(3);
   const [trainingDuration, setTrainingDuration] = useState(60);
-  const [equipment, setEquipment] = useState<string[]>(['pool']);
+  const [equipment, setEquipment] = useState<string[]>(defaultEquipment);
   const [weakness, setWeakness] = useState('');
   const [goal, setGoal] = useState('');
 
@@ -74,6 +89,14 @@ export function QuestionnaireScreen() {
   };
 
   const progressPct = ((step - 1) / (TOTAL_STEPS - 1)) * 100;
+
+  const weaknessPlaceholder = isGym
+    ? 'e.g., My squat form needs work, or I lack upper body strength'
+    : 'e.g., My turns need improvement';
+
+  const goalPlaceholder = isGym
+    ? 'e.g., Gain 5kg of muscle in 6 months, or lose 10kg'
+    : 'e.g., Qualify for regional championship';
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
@@ -126,7 +149,9 @@ export function QuestionnaireScreen() {
         {/* Step 2: Skill Level */}
         {step === 2 && (
           <View>
-            <Text className="text-2xl font-bold text-gray-900 mb-2">Your skill level</Text>
+            <Text className="text-2xl font-bold text-gray-900 mb-2">
+              {isGym ? 'Gym experience' : 'Your skill level'}
+            </Text>
             <Text className="text-gray-500 mb-6">Be honest — we'll calibrate your plan.</Text>
             <View className="gap-3">
               {(['beginner', 'intermediate', 'advanced'] as SkillLevel[]).map((level) => (
@@ -149,9 +174,13 @@ export function QuestionnaireScreen() {
                       {level}
                     </Text>
                     <Text className="text-gray-400 text-sm">
-                      {level === 'beginner' ? 'New to training, learning basics' :
-                       level === 'intermediate' ? 'Regular training, solid foundation' :
-                       'Competing or training intensively'}
+                      {isGym
+                        ? (level === 'beginner' ? 'New to the gym, learning basic movements' :
+                           level === 'intermediate' ? 'Training 6+ months, comfortable with lifts' :
+                           'Training 2+ years, know the compounds well')
+                        : (level === 'beginner' ? 'New to training, learning basics' :
+                           level === 'intermediate' ? 'Regular training, solid foundation' :
+                           'Competing or training intensively')}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -215,7 +244,9 @@ export function QuestionnaireScreen() {
           <View>
             <Text className="text-2xl font-bold text-gray-900 mb-6">Final details</Text>
 
-            <Text className="font-semibold text-gray-900 mb-3">Available Equipment</Text>
+            <Text className="font-semibold text-gray-900 mb-3">
+              {isGym ? 'Available Equipment' : 'Available Equipment'}
+            </Text>
             <View className="flex-row flex-wrap gap-2 mb-6">
               {equipmentOptions.map((eq) => (
                 <TouchableOpacity
@@ -234,12 +265,14 @@ export function QuestionnaireScreen() {
               ))}
             </View>
 
-            <Text className="font-semibold text-gray-900 mb-2">Main Weakness</Text>
+            <Text className="font-semibold text-gray-900 mb-2">
+              {isGym ? 'Main Weakness' : 'Main Weakness'}
+            </Text>
             <TextInput
               className="bg-white border border-gray-200 rounded-2xl p-4 text-gray-900 text-base mb-4"
               value={weakness}
               onChangeText={setWeakness}
-              placeholder="e.g., My turns need improvement"
+              placeholder={weaknessPlaceholder}
               placeholderTextColor="#9ca3af"
               multiline
               numberOfLines={3}
@@ -251,7 +284,7 @@ export function QuestionnaireScreen() {
               className="bg-white border border-gray-200 rounded-2xl p-4 text-gray-900 text-base"
               value={goal}
               onChangeText={setGoal}
-              placeholder="e.g., Qualify for regional championship"
+              placeholder={goalPlaceholder}
               placeholderTextColor="#9ca3af"
               multiline
               numberOfLines={3}

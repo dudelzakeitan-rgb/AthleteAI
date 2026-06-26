@@ -124,7 +124,7 @@ export function TrainingPlanScreen() {
 
             {/* Primary Training */}
             <SectionCard
-              title={sport.id === 'swimming' ? 'Water Training' : `${sport.name} Training`}
+              title={sport.id === 'swimming' ? 'Water Training' : sport.id === 'gym' ? 'Gym Workout' : `${sport.name} Training`}
               icon={sport.id === 'swimming' ? <Waves size={18} color="#3b82f6" /> : <Activity size={18} color="#3b82f6" />}
               expanded={expandedSection === 'water'}
               onToggle={() => setExpandedSection(expandedSection === 'water' ? '' : 'water')}
@@ -157,9 +157,9 @@ export function TrainingPlanScreen() {
               ))}
             </SectionCard>
 
-            {/* Gym Training */}
+            {/* Gym Training / Conditioning */}
             <SectionCard
-              title="Gym Training"
+              title={sport.id === 'gym' ? 'Conditioning & Mobility' : 'Gym Training'}
               icon={<Dumbbell size={18} color="#10b981" />}
               expanded={expandedSection === 'dryland'}
               onToggle={() => setExpandedSection(expandedSection === 'dryland' ? '' : 'dryland')}

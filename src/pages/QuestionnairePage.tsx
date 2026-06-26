@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext';
 
 const skillLevels: SkillLevel[] = ['beginner', 'intermediate', 'advanced'];
 
-const equipmentOptions = [
+const defaultEquipmentOptions = [
   { id: 'pool', label: 'Access to Pool' },
   { id: 'gym', label: 'Gym Membership' },
   { id: 'weights', label: 'Free Weights' },
@@ -19,6 +19,21 @@ const equipmentOptions = [
   { id: 'stairs', label: 'Stairs/Bleachers' },
   { id: 'ball', label: 'Sports Ball' },
   { id: 'net', label: 'Net/Goal' },
+];
+
+const gymEquipmentOptions = [
+  { id: 'barbell', label: 'Barbell' },
+  { id: 'dumbbells', label: 'Dumbbells' },
+  { id: 'cables', label: 'Cable Machine' },
+  { id: 'resistance_bands', label: 'Resistance Bands' },
+  { id: 'pull_up_bar', label: 'Pull-Up Bar' },
+  { id: 'machines', label: 'Gym Machines' },
+  { id: 'cardio_equipment', label: 'Cardio Equipment' },
+  { id: 'bodyweight', label: 'Bodyweight Only' },
+  { id: 'kettlebells', label: 'Kettlebells' },
+  { id: 'foam_roller', label: 'Foam Roller' },
+  { id: 'bench', label: 'Bench' },
+  { id: 'squat_rack', label: 'Squat Rack' },
 ];
 
 export function QuestionnairePage() {
@@ -39,6 +54,8 @@ export function QuestionnairePage() {
 
   const sport = sportsConfig.find((s) => s.id === sportId);
   const improvement = sport?.improvements.find((i) => i.id === improvementId);
+  const isGym = sportId === 'gym';
+  const equipmentOptions = isGym ? gymEquipmentOptions : defaultEquipmentOptions;
 
   if (!sport || !improvement) {
     return (
@@ -274,7 +291,7 @@ export function QuestionnairePage() {
                   className={`w-full p-4 rounded-xl border-2 resize-none h-24 ${
                     errors.weakness ? 'border-red-500' : 'border-gray-200'
                   } focus:border-blue-500 focus:outline-none`}
-                  placeholder={`E.g., "I struggle with maintaining pace..."`}
+                  placeholder={isGym ? 'e.g., My squat form needs work, or I lack upper body strength' : 'e.g., I struggle with maintaining pace...'}
                 />
                 {errors.weakness && (
                   <p className="text-red-500 text-sm mt-1">{errors.weakness}</p>
@@ -296,7 +313,7 @@ export function QuestionnairePage() {
                   className={`w-full p-4 rounded-xl border-2 resize-none h-24 ${
                     errors.goal ? 'border-red-500' : 'border-gray-200'
                   } focus:border-blue-500 focus:outline-none`}
-                  placeholder={`E.g., "I want to improve my time by 5 seconds..."`}
+                  placeholder={isGym ? 'e.g., I want to gain 5kg of muscle in 6 months, or lose 10kg' : 'e.g., I want to improve my time by 5 seconds...'}
                 />
                 {errors.goal && (
                   <p className="text-red-500 text-sm mt-1">{errors.goal}</p>
