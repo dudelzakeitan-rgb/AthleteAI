@@ -2,9 +2,14 @@ import { useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, TextInput, FlatList, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Send, MessageCircle, Bot, User } from 'lucide-react-native';
+import { Send, Bot, User } from 'lucide-react-native';
 import { useApp } from '../context/AppContext';
 import { ChatMessage } from '../types';
+import { askCoach } from '../lib/coachApi';
+import { useSupabaseSession } from '../hooks/useSupabaseSession';
+import { CoachSignInForm } from '../components/CoachSignInForm';
+
+const MAX_HISTORY_MESSAGES = 12;
 
 const SUGGESTIONS = [
   'How can I improve my freestyle technique?',
@@ -13,59 +18,46 @@ const SUGGESTIONS = [
   'What exercises help with injury prevention?',
 ];
 
-function generateResponse(input: string, sport: string | null): string {
-  const lower = input.toLowerCase();
-  if (lower.includes('speed') || lower.includes('fast')) {
-    return `To improve your speed in ${sport || 'your sport'}, focus on high-intensity interval training (HIIT), sprint sets with full recovery, and explosive strength work like plyometrics and power cleans. Consistency over 8-12 weeks will show measurable gains.`;
-  }
-  if (lower.includes('nutrition') || lower.includes('eat') || lower.includes('food') || lower.includes('diet')) {
-    return `Optimal sports nutrition: eat 2-3g of carbs/kg bodyweight before training, prioritize 20-40g protein within 30 minutes post-workout, and stay hydrated with 500ml of water 2 hours before sessions. Whole foods over supplements where possible.`;
-  }
-  if (lower.includes('technique') || lower.includes('form') || lower.includes('freestyle') || lower.includes('stroke')) {
-    return `Technique drills to try: catch-up drill for timing, fingertip drag for high elbow recovery, and side-kick drill for body rotation. Film yourself underwater if possible — small technique flaws are often invisible from above.`;
-  }
-  if (lower.includes('endurance') || lower.includes('stamina')) {
-    return `Build your aerobic base with long, steady sets at 60-70% effort. Gradually increase weekly volume by no more than 10%. Add threshold intervals (85% effort, short rest) once you have a solid base. This 12-week progression is evidence-based and reduces injury risk.`;
-  }
-  if (lower.includes('injur') || lower.includes('pain') || lower.includes('sore')) {
-    return `First: rest the affected area and avoid training through sharp pain. Distinguish between muscle soreness (normal) and joint/tendon pain (needs attention). Ice for acute injuries, heat for chronic tightness. See a physio if pain persists more than 3-5 days. Prevention: always warm up properly and don't skip mobility work.`;
-  }
-  if (lower.includes('recover') || lower.includes('rest')) {
-    return `Recovery is where gains happen. Prioritize 7-9 hours of sleep, active recovery (light swimming/yoga) on rest days, and adequate protein (1.6-2.2g/kg). Cold water immersion, foam rolling, and compression garments can help. Don't underestimate rest — overtraining is a real performance limiter.`;
-  }
-  return `Great question! For ${sport || 'your sport'}, focus on consistency over intensity. Build your base fitness first, master the fundamentals, and progressively overload your training. Track your workouts and look for patterns in your performance improvements. What specific aspect would you like to dive deeper into?`;
-}
-
 export function AICoachScreen() {
-  const { chatMessages, addChatMessage, currentSport } = useApp();
+  const { chatMessages, addChatMessage } = useApp();
+  const { session, isLoading: isSessionLoading } = useSupabaseSession();
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
   const sendMessage = async (text: string) => {
-    if (!text.trim()) return;
+    const content = text.trim();
+    if (!content || isTyping || !session) return;
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
-      content: text,
+      content,
       timestamp: new Date().toISOString(),
     };
-    await addChatMessage(userMsg);
+    const history = [...chatMessages, userMsg]
+      .slice(-MAX_HISTORY_MESSAGES)
+      .map(({ role, content: turn }) => ({ role, content: turn }));
+
+    addChatMessage(userMsg);
     setInput('');
+    setError(null);
     setIsTyping(true);
 
-    setTimeout(async () => {
-      const aiMsg: ChatMessage = {
+    try {
+      const reply = await askCoach(history);
+      addChatMessage({
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: generateResponse(text, currentSport),
+        content: reply,
         timestamp: new Date().toISOString(),
-      };
-      await addChatMessage(aiMsg);
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+    } finally {
       setIsTyping(false);
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 1200);
+    }
   };
 
   const allMessages: ChatMessage[] = chatMessages.length === 0
@@ -76,6 +68,18 @@ export function AICoachScreen() {
         timestamp: new Date().toISOString(),
       }]
     : chatMessages;
+
+  if (isSessionLoading) {
+    return <SafeAreaView className="flex-1 bg-gray-50" edges={['top']} />;
+  }
+
+  if (!session) {
+    return (
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+        <CoachSignInForm />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
@@ -153,6 +157,8 @@ export function AICoachScreen() {
           </View>
         )}
 
+        {error && <Text className="text-sm text-red-600 px-4 pb-2">{error}</Text>}
+
         {/* Input */}
         <View className="flex-row items-end px-4 pb-4 gap-2 bg-white border-t border-gray-100 pt-3">
           <TextInput
@@ -168,7 +174,7 @@ export function AICoachScreen() {
           />
           <TouchableOpacity
             onPress={() => sendMessage(input)}
-            disabled={!input.trim()}
+            disabled={!input.trim() || isTyping}
             className={`w-10 h-10 rounded-full items-center justify-center ${input.trim() ? 'bg-blue-500' : 'bg-gray-200'}`}
           >
             <Send size={18} color={input.trim() ? '#ffffff' : '#9ca3af'} />

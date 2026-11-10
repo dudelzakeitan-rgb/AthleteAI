@@ -36,6 +36,10 @@ interface AppState {
   chatMessages: ChatMessage[];
   addChatMessage: (message: ChatMessage) => void;
 
+  // Last save failure, if any
+  saveError: string | null;
+  clearSaveError: () => void;
+
   // Hydration
   hydrationEntries: HydrationEntry[];
   addHydrationEntry: (entry: HydrationEntry) => void;
@@ -133,9 +137,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [hydrationEntries, setHydrationEntries] = useState<HydrationEntry[]>([]);
   const [streak, setStreak] = useState(0);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const SAVE_FAILED = 'We could not save that. Check your connection and try again.';
+  const clearSaveError = () => setSaveError(null);
 
   useEffect(() => {
     loadData();
+    const { data: listener } = supabase.auth.onAuthStateChange(() => {
+      loadData();
+    });
+    return () => listener.subscription.unsubscribe();
   }, []);
 
   const loadData = async () => {
@@ -166,7 +178,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .from('user_profiles')
         .select('*')
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (data && !error) {
         setUserProfile(data);
@@ -195,10 +207,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const { data } = await supabase
         .from('chat_messages')
         .select('*')
-        .order('timestamp', { ascending: true })
+        .order('timestamp', { ascending: false })
         .limit(50);
 
-      if (data) setChatMessages(data);
+      if (data) setChatMessages([...data].reverse());
     } catch (e) {
       console.log('Chat history unavailable');
     }
@@ -246,9 +258,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProgressEntries((prev) => [entry, ...prev]);
 
     try {
-      await supabase.from('progress_entries').insert([entry]);
+      const { error } = await supabase.from('progress_entries').insert([entry]);
+      if (error) setSaveError(SAVE_FAILED);
     } catch (e) {
-      console.log('Stored locally');
+      setSaveError(SAVE_FAILED);
     }
 
     calculateStreak([entry, ...progressEntries]);
@@ -269,9 +282,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setChatMessages((prev) => [...prev, message]);
 
     try {
-      await supabase.from('chat_messages').insert([message]);
+      const { error } = await supabase.from('chat_messages').insert([message]);
+      if (error) setSaveError(SAVE_FAILED);
     } catch (e) {
-      console.log('Message stored locally');
+      setSaveError(SAVE_FAILED);
     }
   };
 
@@ -279,9 +293,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setHydrationEntries((prev) => [entry, ...prev]);
 
     try {
-      await supabase.from('hydration_entries').insert([entry]);
+      const { error } = await supabase.from('hydration_entries').insert([entry]);
+      if (error) setSaveError(SAVE_FAILED);
     } catch (e) {
-      console.log('Hydration entry stored locally');
+      setSaveError(SAVE_FAILED);
     }
   };
 
@@ -306,6 +321,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addChatMessage,
         hydrationEntries,
         addHydrationEntry,
+        saveError,
+        clearSaveError,
         streak,
         setStreak,
       }}

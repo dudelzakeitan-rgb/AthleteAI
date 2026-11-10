@@ -89,8 +89,9 @@ export function SettingsPage() {
   const handleSave = async () => {
     setIsSaving(true);
 
+    const { data: auth } = await supabase.auth.getUser();
     const profile = {
-      id: userProfile?.id || 'user-1',
+      id: auth.user?.id || userProfile?.id || 'user-1',
       name: formData.name,
       age: formData.age,
       weight: formData.weight,
@@ -105,7 +106,8 @@ export function SettingsPage() {
     };
 
     try {
-      await supabase.from('user_profiles').upsert([profile]);
+      const { error } = await supabase.from('user_profiles').upsert([profile]);
+      if (error) console.log('Profile save rejected');
     } catch (e) {
       console.log('Profile saved locally');
     }

@@ -27,8 +27,9 @@ export function SettingsScreen() {
       Alert.alert('Required', 'Please enter your name.');
       return;
     }
+    const { data: auth } = await supabase.auth.getUser();
     const profile = {
-      id: userProfile?.id || Date.now().toString(),
+      id: auth.user?.id || userProfile?.id || Date.now().toString(),
       name,
       age: Number(age) || 25,
       weight: Number(weight) || 70,
@@ -45,7 +46,8 @@ export function SettingsScreen() {
     setUserProfile(profile as any);
 
     try {
-      await supabase.from('user_profiles').upsert([profile]);
+      const { error } = await supabase.from('user_profiles').upsert([profile]);
+      if (error) console.log('Profile save rejected');
     } catch (e) {
       console.log('Saved locally');
     }
