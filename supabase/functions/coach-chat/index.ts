@@ -13,9 +13,46 @@ const MAX_HISTORY_MESSAGES = 12;
 const MAX_MESSAGE_CHARS = 2000;
 const RATE_LIMIT_PER_HOUR = 30;
 const SYSTEM_PROMPT =
-  "You are Athlatai's AI sports coach. Answer the athlete's latest question directly and specifically, using the earlier messages for context. Do not repeat advice already given in this conversation unless the athlete asks; build on it instead. Keep answers short and practical. For injuries or medical concerns, recommend a qualified professional.";
+  "You are Athlatai's AI sports coach. Answer the athlete's latest question directly and specifically, using the earlier messages for context. Do not repeat advice already given in this conversation unless the athlete asks; build on it instead. Keep answers short and practical. For injuries or medical concerns, recommend a qualified professional. When you suggest a specific meal with a calorie amount, end your reply with a final line in exactly this format and nothing after it: [MEAL: <meal name> | <calories> kcal]. Include the MEAL line only when the reply suggests one concrete meal with a calorie estimate.";
 
 type ChatTurn = { role: "user" | "assistant"; content: string };
+
+interface PreferenceInput {
+  goals?: unknown;
+  sports?: unknown;
+  skill_level?: unknown;
+  equipment?: unknown;
+  sessions_per_week?: unknown;
+  session_minutes?: unknown;
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+function asPositiveNumber(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
+  return Math.round(value);
+}
+
+function describePreferences(prefs: PreferenceInput): string | null {
+  const parts: string[] = [];
+  const goals = asStringArray(prefs.goals);
+  const sports = asStringArray(prefs.sports);
+  const equipment = asStringArray(prefs.equipment);
+  const skill = typeof prefs.skill_level === "string" && prefs.skill_level.trim() ? prefs.skill_level.trim() : null;
+  const sessions = asPositiveNumber(prefs.sessions_per_week);
+  const minutes = asPositiveNumber(prefs.session_minutes);
+  if (goals.length) parts.push(`Goals: ${goals.join(", ")}`);
+  if (sports.length) parts.push(`Preferred sports: ${sports.join(", ")}`);
+  if (skill) parts.push(`Skill level: ${skill}`);
+  if (equipment.length) parts.push(`Available equipment: ${equipment.join(", ")}`);
+  if (sessions !== null) parts.push(`Sessions per week: ${sessions}`);
+  if (minutes !== null) parts.push(`Typical session length: ${minutes} minutes`);
+  if (!parts.length) return null;
+  return `Athlete's saved training profile (use it when relevant): ${parts.join("; ")}.`;
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -98,7 +135,15 @@ Deno.serve(async (req: Request) => {
         model: MODEL,
         max_completion_tokens: MAX_COMPLETION_TOKENS,
         reasoning_effort: "low",
-        messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
+        messages: [
+          {
+            role: "system",
+            content: typeof body?.preferences === "object" && body?.preferences !== null
+              ? `${SYSTEM_PROMPT}\n\n${describePreferences(body.preferences) ?? "No saved training profile available."}`
+              : SYSTEM_PROMPT,
+          },
+          ...messages,
+        ],
       }),
     });
 

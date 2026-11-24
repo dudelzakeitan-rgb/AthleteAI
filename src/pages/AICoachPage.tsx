@@ -18,7 +18,7 @@ import { ChatMessage } from '../types';
 import { FoodEntryForm } from '../components/FoodEntryForm';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../lib/supabase';
-import { askCoach } from '../lib/coachApi';
+import { askCoach, toCoachPreferences } from '../lib/coachApi';
 import { useSupabaseSession } from '../hooks/useSupabaseSession';
 import { CoachAuthCard } from '../components/CoachAuthCard';
 
@@ -40,7 +40,7 @@ const topics = [
 ];
 
 export function AICoachPage() {
-  const { chatMessages, addChatMessage, saveError } = useApp();
+  const { chatMessages, addChatMessage, saveError, preferences } = useApp();
   const { session } = useSupabaseSession();
   const navigate = useNavigate();
   const [input, setInput] = useState('');
@@ -75,7 +75,7 @@ export function AICoachPage() {
     setIsTyping(true);
 
     try {
-      const reply = await askCoach(history);
+      const reply = await askCoach(history, toCoachPreferences(preferences));
       addChatMessage({
         id: uuidv4(),
         role: 'assistant',
@@ -267,22 +267,14 @@ export function AICoachPage() {
   );
 }
 
-function extractMealSuggestion(content: string): { name: string; calories: number } | null {
-  // Match lines like "Grilled chicken salad — about 450 calories" or "Oatmeal (~350 kcal)"
-  const line = content
-    .split('\n')
-    .find((l) => /(\d{2,4})\s*(kcal|calories|cals|cal)\b/i.test(l) && l.trim().length < 160);
-  if (!line) return null;
-  const calories = line.match(/(\d{2,4})\s*(?:kcal|calories|cals|cal)/i);
-  if (!calories) return null;
-  const name = line
-    .replace(/[(\-–—:]?\s*about\s*/gi, '')
-    .replace(/[(\-–—:]?\s*(approximately|roughly|~)\s*/gi, '')
-    .replace(/\d{2,4}\s*(kcal|calories|cals|cal)\b/gi, '')
-    .replace(/[\-–—:~()]+$/g, '')
-    .trim();
-  if (!name || name.length < 3) return null;
-  return { name, calories: parseInt(calories[1], 10) };
+function extractMealSuggestion(content: string): { name: string; calories: number; displayText: string } | null {
+  const match = content.match(/\[MEAL:\s*(.+?)\s*\|\s*(\d{2,4})\s*kcal\s*\]/i);
+  if (!match) return null;
+  const name = match[1].trim();
+  const calories = parseInt(match[2], 10);
+  if (!name || !calories) return null;
+  const displayText = content.replace(/\s*\[MEAL:[^\]]*\]/gi, '').trim();
+  return { name, calories, displayText };
 }
 
 function MessageBubble({
@@ -294,6 +286,7 @@ function MessageBubble({
 }) {
   const isUser = message.role === 'user';
   const meal = !isUser ? extractMealSuggestion(message.content) : null;
+  const displayContent = meal ? meal.displayText : message.content;
 
   return (
     <div className={`flex items-start gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
@@ -318,7 +311,7 @@ function MessageBubble({
         }`}
       >
         <div className={`text-sm whitespace-pre-wrap ${isUser ? 'text-white' : 'text-gray-800'}`}>
-          {message.content}
+          {displayContent}
         </div>
         <div
           className={`text-xs mt-1 ${
@@ -330,6 +323,16 @@ function MessageBubble({
             minute: '2-digit',
           })}
         </div>
+        {meal && (
+          <button
+            type="button"
+            onClick={() => onAddMeal({ name: meal.name, calories: meal.calories })}
+            className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-medium hover:bg-emerald-100 transition-colors"
+          >
+            <Apple className="w-3.5 h-3.5" />
+            Add to Nutrition
+          </button>
+        )}
       </div>
     </div>
   );

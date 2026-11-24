@@ -31,14 +31,22 @@ export function CoachAuthCard() {
     setNotice(null);
   };
 
+  const [profileNotice, setProfileNotice] = useState<string | null>(null);
+
   const createProfile = async (userId: string, displayName: string) => {
-    await supabase.from('user_profiles').upsert({
+    const { error: profileError } = await supabase.from('user_profiles').upsert({
       id: userId,
       name: displayName,
       notifications: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     });
+    if (profileError) {
+      setProfileNotice(
+        'Your account was created, but your name could not be saved. Sign in and finish setting up your profile in Settings.'
+      );
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -68,7 +76,7 @@ export function CoachAuthCard() {
     if (result.error) {
       setError(describeAuthError(result.error.message));
     } else if (mode === 'signup' && result.data.user) {
-      await createProfile(result.data.user.id, trimmedName);
+      const profileSaved = await createProfile(result.data.user.id, trimmedName);
       await savePreferences({
         goals: [],
         sports: [],
@@ -77,6 +85,7 @@ export function CoachAuthCard() {
         sessions_per_week: null,
         session_minutes: null,
       });
+      if (profileSaved) setProfileNotice('Welcome! Your profile has been set up.');
     } else if (mode === 'signup' && !result.data.session) {
       setNotice('Account created. You can now sign in.');
       setMode('signin');
@@ -146,6 +155,7 @@ export function CoachAuthCard() {
         </label>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
+        {profileNotice && <p className="text-sm text-amber-600">{profileNotice}</p>}
         {notice && <p className="text-sm text-emerald-600">{notice}</p>}
 
         <button

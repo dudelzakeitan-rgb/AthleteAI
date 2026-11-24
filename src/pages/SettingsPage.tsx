@@ -51,6 +51,7 @@ export function SettingsPage() {
   const [activeSection, setActiveSection] = useState<'profile' | 'sport' | 'notifications' | 'account'>('profile');
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -88,6 +89,7 @@ export function SettingsPage() {
 
   const handleSave = async () => {
     setIsSaving(true);
+    setSaveError(null);
 
     const { data: auth } = await supabase.auth.getUser();
     const profile = {
@@ -98,21 +100,20 @@ export function SettingsPage() {
       height: formData.height,
       sport: formData.sport,
       goal: formData.goal,
-      skillLevel: formData.skillLevel,
+      skill_level: formData.skillLevel,
       equipment: formData.equipment,
       notifications: formData.notifications,
-      createdAt: userProfile?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
-    try {
-      const { error } = await supabase.from('user_profiles').upsert([profile]);
-      if (error) console.log('Profile save rejected');
-    } catch (e) {
-      console.log('Profile saved locally');
+    const { error } = await supabase.from('user_profiles').upsert(profile);
+    if (error) {
+      setSaveError('Your changes could not be saved. Check your connection and try again.');
+      setIsSaving(false);
+      return;
     }
 
-    setUserProfile(profile);
+    setUserProfile({ ...profile, created_at: userProfile?.created_at ?? profile.updated_at } as typeof userProfile);
     setIsSaving(false);
     setShowSaveSuccess(true);
     setTimeout(() => setShowSaveSuccess(false), 3000);
@@ -480,6 +481,12 @@ export function SettingsPage() {
           <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 px-6 py-3 bg-emerald-500 text-white rounded-full shadow-lg animate-slide-up flex items-center gap-2">
             <CheckCircle className="w-5 h-5" />
             Settings saved successfully!
+          </div>
+        )}
+
+        {saveError && (
+          <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 px-6 py-3 bg-red-500 text-white rounded-full shadow-lg animate-slide-up flex items-center gap-2" role="alert">
+            {saveError}
           </div>
         )}
       </div>
