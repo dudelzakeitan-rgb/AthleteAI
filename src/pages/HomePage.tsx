@@ -1,5 +1,6 @@
-import { Link } from 'react-router-dom';
-import { ChevronRight, Trophy, Zap, Heart, Target, Users, TrendingUp } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { ChevronRight, Trophy, Zap, Heart, Target, Users, TrendingUp, CheckCircle } from 'lucide-react';
+import { useApp } from '../context/AppContext';
 
 const features = [
   {
@@ -35,8 +36,17 @@ const stats = [
 ];
 
 export function HomePage() {
+  const location = useLocation();
+  const workoutSaved = Boolean((location.state as { workoutSaved?: boolean } | null)?.workoutSaved);
+
   return (
     <div className="pt-16">
+      {workoutSaved && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 bg-emerald-500 text-white rounded-full shadow-lg animate-slide-up flex items-center gap-2">
+          <CheckCircle className="w-5 h-5" />
+          Workout saved!
+        </div>
+      )}
       <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500">
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-40 -right-40 w-80 h-80 bg-white/10 rounded-full blur-3xl" />

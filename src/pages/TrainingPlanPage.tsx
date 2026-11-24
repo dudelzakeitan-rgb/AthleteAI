@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft,
@@ -21,17 +21,21 @@ import {
   Save,
   ChevronRight,
 } from 'lucide-react';
-import { sportsConfig, ProgressEntry, DrylandExercise } from '../types';
+import { sportsConfig, DrylandExercise } from '../types';
 import { useApp } from '../context/AppContext';
+import { supabase } from '../lib/supabase';
 import { generateTrainingPlan } from '../lib/trainingGenerator';
 import { ExerciseModal } from '../components/ExerciseModal';
 
 export function TrainingPlanPage() {
   const { sportId, improvementId } = useParams<{ sportId: string; improvementId: string }>();
   const navigate = useNavigate();
-  const { questionnaire, currentPlan, setCurrentPlan, addProgressEntry } = useApp();
+  const { questionnaire, currentPlan, setCurrentPlan } = useApp();
   const [expandedSection, setExpandedSection] = useState<string>('water');
-  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [savedToAccount, setSavedToAccount] = useState(false);
+  const clientKeyRef = useRef<string | null>(null);
   const [activeTab, setActiveTab] = useState<'training' | 'analysis' | 'goals'>('training');
   const [selectedExercise, setSelectedExercise] = useState<DrylandExercise | null>(null);
 
@@ -50,20 +54,37 @@ export function TrainingPlanPage() {
   }, [questionnaire, sport, improvement, setCurrentPlan]);
 
   const handleSaveProgress = async () => {
-    const entry: ProgressEntry = {
-      id: Date.now().toString(),
-      date: new Date().toISOString(),
+    if (isSaving || savedToAccount) return;
+    setIsSaving(true);
+    setSaveError(null);
+
+    const clientKey = clientKeyRef.current ?? `finish-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    clientKeyRef.current = clientKey;
+
+    const entry = {
+      client_key: clientKey,
       sport: sport?.id || 'swimming',
-      workoutType: `${improvement?.label} Training`,
+      workout_type: `${improvement?.label} Training`,
       duration: questionnaire?.trainingDuration || 60,
-      completed: true,
+      completed_at: new Date().toISOString(),
       intensity: 'moderate',
-      caloriesBurned: Math.round((questionnaire?.trainingDuration || 60) * 8),
+      calories_burned: Math.round((questionnaire?.trainingDuration || 60) * 8),
     };
 
-    await addProgressEntry(entry);
-    setShowSaveSuccess(true);
-    setTimeout(() => setShowSaveSuccess(false), 3000);
+    const { error } = await supabase.from('saved_workouts').upsert(entry, {
+      onConflict: 'client_key',
+      ignoreDuplicates: true,
+    });
+
+    if (error) {
+      setSaveError('We could not save your workout. Your data is safe — try again.');
+      setIsSaving(false);
+      return;
+    }
+
+    setIsSaving(false);
+    setSavedToAccount(true);
+    navigate('/', { state: { workoutSaved: true } });
   };
 
   if (!sport || !improvement || !questionnaire || !currentPlan) {
@@ -507,10 +528,11 @@ export function TrainingPlanPage() {
         <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
           <button
             onClick={handleSaveProgress}
-            className="flex items-center justify-center px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold text-lg rounded-full shadow-lg hover:shadow-xl hover:scale-105 transform transition-all duration-300"
+            disabled={isSaving || savedToAccount}
+            className="flex items-center justify-center px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold text-lg rounded-full shadow-lg hover:shadow-xl hover:scale-105 transform transition-all duration-300 disabled:opacity-60 disabled:hover:scale-100"
           >
             <Save className="w-5 h-5 mr-2" />
-            Mark as Complete
+            {isSaving ? 'Saving...' : savedToAccount ? 'Saved' : 'Mark as Complete'}
           </button>
           <button
             onClick={() => navigate('/dashboard')}
@@ -521,10 +543,19 @@ export function TrainingPlanPage() {
           </button>
         </div>
 
-        {showSaveSuccess && (
-          <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 px-6 py-3 bg-emerald-500 text-white rounded-full shadow-lg animate-slide-up flex items-center gap-2">
-            <CheckCircle className="w-5 h-5" />
-            Progress saved successfully!
+        {saveError && (
+          <div className="mt-4 max-w-md mx-auto bg-red-50 border border-red-100 rounded-xl p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm text-red-700">{saveError}</p>
+              <button
+                onClick={handleSaveProgress}
+                disabled={isSaving}
+                className="mt-2 text-sm font-semibold text-red-700 underline hover:text-red-800 disabled:opacity-50"
+              >
+                Try Again
+              </button>
+            </div>
           </div>
         )}
       </div>

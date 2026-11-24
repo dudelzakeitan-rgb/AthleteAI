@@ -16,16 +16,17 @@ import {
   Info,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { HydrationEntry } from '../types';
+import { HydrationEntry, FoodEntry } from '../types';
+import { FoodEntryForm } from '../components/FoodEntryForm';
 
 interface LocalMeal {
   name: string;
   calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  description: string;
-  nutrients: string[];
+  description?: string;
+  nutrients?: string[];
+  protein?: number;
+  carbs?: number;
+  fat?: number;
 }
 import { format, subDays } from 'date-fns';
 
@@ -57,12 +58,14 @@ const mealTemplates: Record<string, LocalMeal[]> = {
 };
 
 export function NutritionPage() {
-  const { hydrationEntries, addHydrationEntry } = useApp();
+  const { hydrationEntries, addHydrationEntry, foodEntries, deleteFoodEntry } = useApp();
   const [selectedTab, setSelectedTab] = useState<'planner' | 'hydration' | 'calculator'>('planner');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [waterIntake, setWaterIntake] = useState(0);
   const [waterGoal] = useState(64);
   const [expandedMeal, setExpandedMeal] = useState<string>('breakfast');
+  const [foodForm, setFoodForm] = useState<{ mealType: 'breakfast' | 'lunch' | 'dinner' | 'snacks' } | null>(null);
+  const [editingEntry, setEditingEntry] = useState<string | null>(null);
   const [dailyPlan, setDailyPlan] = useState<Record<string, LocalMeal | null>>({
     breakfast: null,
     lunch: null,
@@ -94,13 +97,16 @@ export function NutritionPage() {
     }));
   };
 
+  const todayFood = foodEntries.filter(
+    (e) => e.date === format(selectedDate, 'yyyy-MM-dd')
+  );
+
   const calculateTotals = () => {
-    const meals = Object.values(dailyPlan).filter(Boolean) as LocalMeal[];
     return {
-      calories: meals.reduce((sum, m) => sum + m.calories, 0),
-      protein: meals.reduce((sum, m) => sum + m.protein, 0),
-      carbs: meals.reduce((sum, m) => sum + m.carbs, 0),
-      fat: meals.reduce((sum, m) => sum + m.fat, 0),
+      calories: todayFood.reduce((sum, m) => sum + m.calories, 0),
+      protein: todayFood.reduce((sum, m) => sum + (m.protein ?? 0), 0),
+      carbs: todayFood.reduce((sum, m) => sum + (m.carbs ?? 0), 0),
+      fat: todayFood.reduce((sum, m) => sum + (m.fat ?? 0), 0),
     };
   };
 
@@ -190,65 +196,19 @@ export function NutritionPage() {
             </div>
 
             {Object.entries(mealTemplates).map(([mealType, meals]) => (
-              <div key={mealType} className="bg-white rounded-2xl shadow-lg overflow-hidden">
-                <button
-                  onClick={() => setExpandedMeal(expandedMeal === mealType ? '' : mealType)}
-                  className="w-full flex items-center justify-between p-6 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
-                      {mealType === 'breakfast' && <Coffee className="w-5 h-5 text-white" />}
-                      {mealType === 'lunch' && <Utensils className="w-5 h-5 text-white" />}
-                      {mealType === 'dinner' && <Apple className="w-5 h-5 text-white" />}
-                      {mealType === 'snacks' && <Cookie className="w-5 h-5 text-white" />}
-                    </div>
-                    <div className="text-left">
-                      <h3 className="text-lg font-bold text-gray-900 capitalize">{mealType}</h3>
-                      {dailyPlan[mealType] && (
-                        <p className="text-sm text-emerald-600">{dailyPlan[mealType]?.name}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {dailyPlan[mealType] && (
-                      <span className="text-sm text-gray-500">{dailyPlan[mealType]?.calories} cal</span>
-                    )}
-                    {expandedMeal === mealType ? (
-                      <ChevronUp className="w-5 h-5 text-gray-400" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-gray-400" />
-                    )}
-                  </div>
-                </button>
-
-                {expandedMeal === mealType && (
-                  <div className="px-6 pb-6 grid sm:grid-cols-2 gap-3 animate-fade-in">
-                    {meals.map((meal, i) => (
-                      <button
-                        key={i}
-                        onClick={() => handleSelectMeal(mealType, meal)}
-                        className={`p-4 rounded-xl text-left transition-all ${
-                          dailyPlan[mealType]?.name === meal.name
-                            ? 'bg-emerald-100 border-2 border-emerald-500'
-                            : 'bg-gray-50 border-2 border-transparent hover:border-gray-200'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <span className="font-semibold text-gray-900">{meal.name}</span>
-                          {dailyPlan[mealType]?.name === meal.name && (
-                            <CheckCircle className="w-5 h-5 text-emerald-500" />
-                          )}
-                        </div>
-                        <div className="text-sm text-gray-600 mb-2">{meal.description}</div>
-                        <div className="flex gap-3 text-xs text-gray-500">
-                          <span>{meal.calories} cal</span>
-                          <span>{meal.protein}g protein</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <FoodSection
+                key={mealType}
+                mealType={mealType}
+                meals={meals}
+                todayFood={todayFood.filter((e) => e.mealType === mealType)}
+                dailyPlan={dailyPlan}
+                expandedMeal={expandedMeal}
+                setExpandedMeal={setExpandedMeal}
+                setFoodForm={setFoodForm}
+                setEditingEntry={setEditingEntry}
+                deleteFoodEntry={deleteFoodEntry}
+                handleSelectMeal={handleSelectMeal}
+              />
             ))}
 
             <div className="bg-emerald-50 rounded-2xl p-6 border border-emerald-200">
@@ -466,6 +426,148 @@ export function NutritionPage() {
           </div>
         )}
       </div>
+
+      {foodForm && (
+        <FoodEntryForm
+          initial={{ mealType: foodForm.mealType, date: format(selectedDate, 'yyyy-MM-dd') }}
+          onClose={() => setFoodForm(null)}
+        />
+      )}
+
+      {editingEntry && (
+        <FoodEntryForm
+          editingId={editingEntry}
+          initialEditingValues={{
+            name: foodEntries.find((e) => e.id === editingEntry)?.name,
+            calories: foodEntries.find((e) => e.id === editingEntry)?.calories,
+            mealType: foodEntries.find((e) => e.id === editingEntry)?.mealType,
+            date: foodEntries.find((e) => e.id === editingEntry)?.date,
+          }}
+          onClose={() => setEditingEntry(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function FoodSection({
+  mealType,
+  meals,
+  todayFood,
+  dailyPlan,
+  expandedMeal,
+  setExpandedMeal,
+  setFoodForm,
+  setEditingEntry,
+  deleteFoodEntry,
+  handleSelectMeal,
+}: {
+  mealType: string;
+  meals: LocalMeal[];
+  todayFood: FoodEntry[];
+  dailyPlan: Record<string, LocalMeal | null>;
+  expandedMeal: string;
+  setExpandedMeal: (v: string) => void;
+  setFoodForm: (v: { mealType: 'breakfast' | 'lunch' | 'dinner' | 'snacks' }) => void;
+  setEditingEntry: (id: string) => void;
+  deleteFoodEntry: (id: string) => void;
+  handleSelectMeal: (mealType: string, meal: LocalMeal) => void;
+}) {
+  return (
+    <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+      <button
+        onClick={() => setExpandedMeal(expandedMeal === mealType ? '' : mealType)}
+        className="w-full flex items-center justify-between p-6 hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
+            {mealType === 'breakfast' && <Coffee className="w-5 h-5 text-white" />}
+            {mealType === 'lunch' && <Utensils className="w-5 h-5 text-white" />}
+            {mealType === 'dinner' && <Apple className="w-5 h-5 text-white" />}
+            {mealType === 'snacks' && <Cookie className="w-5 h-5 text-white" />}
+          </div>
+          <div className="text-left">
+            <h3 className="text-lg font-bold text-gray-900 capitalize">{mealType}</h3>
+            {todayFood.length > 0 && (
+              <p className="text-sm text-emerald-600">
+                {todayFood.reduce((s, e) => s + e.calories, 0)} cal logged
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setFoodForm({ mealType: mealType as 'breakfast' | 'lunch' | 'dinner' | 'snacks' });
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Food
+          </button>
+          {expandedMeal === mealType ? (
+            <ChevronUp className="w-5 h-5 text-gray-400" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-gray-400" />
+          )}
+        </div>
+      </button>
+
+      {expandedMeal === mealType && (
+        <div className="px-6 pb-6 grid sm:grid-cols-2 gap-3 animate-fade-in">
+          {todayFood.map((entry) => (
+            <div key={entry.id} className="p-4 rounded-xl bg-emerald-50 border-2 border-emerald-300">
+              <div className="flex items-start justify-between mb-1.5">
+                <span className="font-semibold text-gray-900">{entry.name}</span>
+                <span className="text-xs text-gray-500 flex-shrink-0 ml-2">{entry.calories} cal</span>
+              </div>
+              {entry.isEstimate && (
+                <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 mb-2">
+                  AI estimate
+                </span>
+              )}
+              <div className="flex gap-3 text-xs">
+                <button
+                  onClick={() => setEditingEntry(entry.id)}
+                  className="text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => deleteFoodEntry(entry.id)}
+                  className="text-red-500 hover:text-red-600 font-medium"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+          {meals.map((meal, i) => (
+            <button
+              key={i}
+              onClick={() => handleSelectMeal(mealType, meal)}
+              className={`p-4 rounded-xl text-left transition-all ${
+                dailyPlan[mealType]?.name === meal.name
+                  ? 'bg-emerald-100 border-2 border-emerald-500'
+                  : 'bg-gray-50 border-2 border-transparent hover:border-gray-200'
+              }`}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <span className="font-semibold text-gray-900">{meal.name}</span>
+                {dailyPlan[mealType]?.name === meal.name && (
+                  <CheckCircle className="w-5 h-5 text-emerald-500" />
+                )}
+              </div>
+              <div className="text-sm text-gray-600 mb-2">{meal.description}</div>
+              <div className="flex gap-3 text-xs text-gray-500">
+                <span>{meal.calories} cal</span>
+                {meal.protein !== undefined && <span>{meal.protein}g protein</span>}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

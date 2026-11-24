@@ -14,6 +14,9 @@ import { AICoachPage } from './pages/AICoachPage';
 import { NutritionPage } from './pages/NutritionPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AboutPage } from './pages/AboutPage';
+import { CreateWorkoutPage } from './pages/CreateWorkoutPage';
+import { TrainingPreferencesPage } from './pages/TrainingPreferencesPage';
+import { OnboardingGate } from './pages/OnboardingGate';
 
 function App() {
   return (
@@ -23,8 +26,9 @@ function App() {
           <Navigation />
             <Routes>
               <Route path="/" element={<HomePage />} />
-              <Route path="/sports" element={<SportsPage />} />
+              <Route path="/sports" element={<OnboardingGate><SportsPage /></OnboardingGate>} />
               <Route path="/sports/:sportId" element={<SportDetailPage />} />
+              <Route path="/create-workout" element={<CreateWorkoutPage />} />
               <Route path="/training/:sportId/:improvementId/questionnaire" element={<QuestionnairePage />} />
               <Route path="/training/:sportId/:improvementId/plan-preview" element={<PlanPreviewPage />} />
               <Route path="/training/:sportId/:improvementId/plan" element={<TrainingPlanPage />} />
@@ -34,6 +38,7 @@ function App() {
               <Route path="/coach" element={<AICoachPage />} />
               <Route path="/nutrition" element={<NutritionPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/settings/training-preferences" element={<TrainingPreferencesPage />} />
               <Route path="/about" element={<AboutPage />} />
             </Routes>
         </div>

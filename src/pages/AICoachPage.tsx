@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Send,
   Bot,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ChatMessage } from '../types';
+import { FoodEntryForm } from '../components/FoodEntryForm';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../lib/supabase';
 import { askCoach } from '../lib/coachApi';
@@ -40,10 +42,12 @@ const topics = [
 export function AICoachPage() {
   const { chatMessages, addChatMessage, saveError } = useApp();
   const { session } = useSupabaseSession();
+  const navigate = useNavigate();
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [mealToAdd, setMealToAdd] = useState<{ name: string; calories: number } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -172,7 +176,7 @@ export function AICoachPage() {
         {chatMessages.length > 0 && (
           <div className="flex-1 overflow-y-auto space-y-4 mb-4">
             {chatMessages.map((message) => (
-              <MessageBubble key={message.id} message={message} />
+              <MessageBubble key={message.id} message={message} onAddMeal={setMealToAdd} />
             ))}
             {isTyping && (
               <div className="flex items-start gap-3 animate-pulse">
@@ -245,12 +249,51 @@ export function AICoachPage() {
           AI Coach provides general advice. Consult a professional for personalized guidance.
         </p>
       </div>
+
+      {mealToAdd && session && (
+        <FoodEntryForm
+          initial={{
+            name: mealToAdd.name,
+            calories: mealToAdd.calories,
+            isEstimate: true,
+          }}
+          onClose={() => {
+            setMealToAdd(null);
+            navigate('/nutrition');
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+function extractMealSuggestion(content: string): { name: string; calories: number } | null {
+  // Match lines like "Grilled chicken salad — about 450 calories" or "Oatmeal (~350 kcal)"
+  const line = content
+    .split('\n')
+    .find((l) => /(\d{2,4})\s*(kcal|calories|cals|cal)\b/i.test(l) && l.trim().length < 160);
+  if (!line) return null;
+  const calories = line.match(/(\d{2,4})\s*(?:kcal|calories|cals|cal)/i);
+  if (!calories) return null;
+  const name = line
+    .replace(/[(\-–—:]?\s*about\s*/gi, '')
+    .replace(/[(\-–—:]?\s*(approximately|roughly|~)\s*/gi, '')
+    .replace(/\d{2,4}\s*(kcal|calories|cals|cal)\b/gi, '')
+    .replace(/[\-–—:~()]+$/g, '')
+    .trim();
+  if (!name || name.length < 3) return null;
+  return { name, calories: parseInt(calories[1], 10) };
+}
+
+function MessageBubble({
+  message,
+  onAddMeal,
+}: {
+  message: ChatMessage;
+  onAddMeal: (meal: { name: string; calories: number }) => void;
+}) {
   const isUser = message.role === 'user';
+  const meal = !isUser ? extractMealSuggestion(message.content) : null;
 
   return (
     <div className={`flex items-start gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>

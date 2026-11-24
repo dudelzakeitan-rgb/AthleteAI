@@ -1,4 +1,4 @@
-export type Sport = 'swimming' | 'football' | 'tennis' | 'basketball' | 'running' | 'cycling' | 'volleyball' | 'gym';
+export type Sport = 'swimming' | 'strength' | 'running' | 'football' | 'basketball' | 'tennis' | 'cycling' | 'volleyball' | 'gym';
 
 export type SwimmingStroke = 'freestyle' | 'breaststroke' | 'backstroke' | 'butterfly';
 
@@ -163,6 +163,25 @@ export interface ChatMessage {
   timestamp: string;
 }
 
+export interface FoodEntry {
+  id: string;
+  date: string;
+  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snacks';
+  name: string;
+  calories: number;
+  isEstimate?: boolean;
+  createdAt?: string;
+}
+
+export interface TrainingPreferences {
+  goals: string[];
+  sports: string[];
+  skill_level: string | null;
+  equipment: string[];
+  sessions_per_week: number | null;
+  session_minutes: number | null;
+}
+
 export interface DailyMealPlan {
   date: string;
   meals: {
@@ -209,51 +228,19 @@ export const sportsConfig: SportConfig[] = [
       { id: 'endurance', label: 'Endurance', icon: 'Heart' },
       { id: 'starts', label: 'Starts', icon: 'Play' },
       { id: 'turns', label: 'Turns', icon: 'RotateCcw' },
-      { id: 'breathing', label: 'Breathing', icon: 'Wind' },
-      { id: 'kick', label: 'Kick', icon: 'Activity' },
-      { id: 'pull', label: 'Pull', icon: 'Move' },
     ],
   },
   {
-    id: 'football',
-    name: 'Football',
-    icon: 'CircleDot',
-    color: 'from-green-400 to-emerald-500',
-    bgGradient: 'from-green-500 via-emerald-400 to-green-600',
+    id: 'strength',
+    name: 'Strength Training',
+    icon: 'Dumbbell',
+    color: 'from-zinc-500 to-stone-600',
+    bgGradient: 'from-zinc-600 via-stone-500 to-zinc-700',
     improvements: [
-      { id: 'speed', label: 'Speed', icon: 'Zap' },
-      { id: 'shooting', label: 'Shooting', icon: 'Target' },
-      { id: 'passing', label: 'Passing', icon: 'ArrowRight' },
-      { id: 'dribbling', label: 'Dribbling', icon: 'Move' },
-      { id: 'stamina', label: 'Stamina', icon: 'Heart' },
-    ],
-  },
-  {
-    id: 'tennis',
-    name: 'Tennis',
-    icon: 'Circle',
-    color: 'from-yellow-400 to-orange-500',
-    bgGradient: 'from-yellow-500 via-orange-400 to-yellow-600',
-    improvements: [
-      { id: 'serve', label: 'Serve', icon: 'ArrowUpCircle' },
-      { id: 'forehand', label: 'Forehand', icon: 'MoveRight' },
-      { id: 'backhand', label: 'Backhand', icon: 'MoveLeft' },
-      { id: 'footwork', label: 'Footwork', icon: 'Activity' },
-      { id: 'endurance', label: 'Endurance', icon: 'Heart' },
-    ],
-  },
-  {
-    id: 'basketball',
-    name: 'Basketball',
-    icon: 'CircleDot',
-    color: 'from-orange-400 to-red-500',
-    bgGradient: 'from-orange-500 via-red-400 to-orange-600',
-    improvements: [
-      { id: 'shooting', label: 'Shooting', icon: 'Target' },
-      { id: 'ball_handling', label: 'Ball Handling', icon: 'Hand' },
-      { id: 'defense', label: 'Defense', icon: 'Shield' },
-      { id: 'speed', label: 'Speed', icon: 'Zap' },
-      { id: 'vertical_jump', label: 'Vertical Jump', icon: 'TrendingUp' },
+      { id: 'build_muscle', label: 'Build Muscle', icon: 'TrendingUp' },
+      { id: 'lose_weight', label: 'Lose Weight', icon: 'Flame' },
+      { id: 'strength', label: 'Strength', icon: 'Zap' },
+      { id: 'fitness', label: 'General Fitness', icon: 'Heart' },
     ],
   },
   {
@@ -271,44 +258,33 @@ export const sportsConfig: SportConfig[] = [
     ],
   },
   {
-    id: 'cycling',
-    name: 'Cycling',
-    icon: 'Bike',
-    color: 'from-teal-400 to-green-500',
-    bgGradient: 'from-teal-500 via-green-400 to-teal-600',
+    id: 'football',
+    name: 'Football',
+    icon: 'CircleDot',
+    color: 'from-green-400 to-emerald-500',
+    bgGradient: 'from-green-500 via-emerald-400 to-green-600',
     improvements: [
       { id: 'speed', label: 'Speed', icon: 'Zap' },
-      { id: 'endurance', label: 'Endurance', icon: 'Heart' },
-      { id: 'climbing', label: 'Climbing', icon: 'TrendingUp' },
-      { id: 'technique', label: 'Technique', icon: 'Target' },
-      { id: 'power', label: 'Power', icon: 'Flame' },
-    ],
-  },
-  {
-    id: 'volleyball',
-    name: 'Volleyball',
-    icon: 'CircleDot',
-    color: 'from-pink-400 to-rose-500',
-    bgGradient: 'from-pink-500 via-rose-400 to-pink-600',
-    improvements: [
-      { id: 'spike', label: 'Spike', icon: 'TrendingUp' },
-      { id: 'serve', label: 'Serve', icon: 'ArrowUpCircle' },
-      { id: 'block', label: 'Block', icon: 'Shield' },
+      { id: 'shooting', label: 'Shooting', icon: 'Target' },
       { id: 'passing', label: 'Passing', icon: 'ArrowRight' },
-      { id: 'jump', label: 'Jump', icon: 'Activity' },
+      { id: 'dribbling', label: 'Dribbling', icon: 'Move' },
+      { id: 'stamina', label: 'Stamina', icon: 'Heart' },
     ],
   },
   {
-    id: 'gym',
-    name: 'Gym',
-    icon: 'Dumbbell',
-    color: 'from-zinc-500 to-stone-600',
-    bgGradient: 'from-zinc-600 via-stone-500 to-zinc-700',
+    id: 'basketball',
+    name: 'Basketball',
+    icon: 'CircleDot',
+    color: 'from-orange-400 to-red-500',
+    bgGradient: 'from-orange-500 via-red-400 to-orange-600',
     improvements: [
-      { id: 'build_muscle', label: 'Build Muscle', icon: 'TrendingUp' },
-      { id: 'lose_weight', label: 'Lose Weight', icon: 'Flame' },
-      { id: 'strength', label: 'Strength', icon: 'Zap' },
-      { id: 'fitness', label: 'General Fitness', icon: 'Heart' },
+      { id: 'shooting', label: 'Shooting', icon: 'Target' },
+      { id: 'ball_handling', label: 'Ball Handling', icon: 'Hand' },
+      { id: 'defense', label: 'Defense', icon: 'Shield' },
+      { id: 'speed', label: 'Speed', icon: 'Zap' },
+      { id: 'vertical_jump', label: 'Vertical Jump', icon: 'TrendingUp' },
     ],
   },
 ];
+
+export const PRIMARY_SPORTS: Sport[] = ['swimming', 'strength', 'running', 'football', 'basketball'];

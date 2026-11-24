@@ -8,8 +8,11 @@ import {
   UserProfile,
   ChatMessage,
   HydrationEntry,
+  FoodEntry,
+  TrainingPreferences,
 } from '../types';
 import { supabase } from '../lib/supabase';
+import type { Session } from '@supabase/supabase-js';
 
 interface AppState {
   // Training flow
@@ -44,9 +47,23 @@ interface AppState {
   hydrationEntries: HydrationEntry[];
   addHydrationEntry: (entry: HydrationEntry) => void;
 
+  // Food log
+  foodEntries: FoodEntry[];
+  addFoodEntry: (entry: Omit<FoodEntry, 'id' | 'createdAt'>) => Promise<FoodEntry | null>;
+  updateFoodEntry: (id: string, changes: Partial<FoodEntry>) => Promise<boolean>;
+  deleteFoodEntry: (id: string) => Promise<boolean>;
+
+  // Training preferences (onboarding answers)
+  preferences: TrainingPreferences | null;
+  preferencesLoaded: boolean;
+  savePreferences: (prefs: TrainingPreferences) => Promise<boolean>;
+
   // Training streak
   streak: number;
   setStreak: (streak: number) => void;
+
+  // Auth session
+  session: Session | null;
 }
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -136,36 +153,53 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [hydrationEntries, setHydrationEntries] = useState<HydrationEntry[]>([]);
+  const [foodEntries, setFoodEntries] = useState<FoodEntry[]>([]);
+  const [preferences, setPreferences] = useState<TrainingPreferences | null>(null);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [streak, setStreak] = useState(0);
+  const [session, setSession] = useState<Session | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const SAVE_FAILED = 'We could not save that. Check your connection and try again.';
   const clearSaveError = () => setSaveError(null);
 
   useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
     loadData();
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      loadData();
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      (() => loadData())();
     });
     return () => listener.subscription.unsubscribe();
   }, []);
 
   const loadData = async () => {
-    await Promise.all([loadProgress(), loadProfile(), loadHydration(), loadChat()]);
+    await Promise.all([loadProgress(), loadProfile(), loadHydration(), loadChat(), loadFood(), loadPreferences()]);
   };
 
   const loadProgress = async () => {
     try {
       const { data, error } = await supabase
-        .from('progress_entries')
+        .from('saved_workouts')
         .select('*')
-        .order('date', { ascending: false })
+        .order('completed_at', { ascending: false })
         .limit(100);
 
       if (data && !error) {
-        setProgressEntries(data);
-        calculateStreak(data);
-        updateAchievementsFromProgress(data);
+        const entries: ProgressEntry[] = data.map((row: any) => ({
+          id: row.id,
+          date: row.completed_at,
+          sport: row.sport,
+          workoutType: row.workout_type,
+          duration: row.duration,
+          completed: true,
+          intensity: row.intensity,
+          caloriesBurned: row.calories_burned,
+          notes: row.notes,
+        }));
+        setProgressEntries(entries);
+        calculateStreak(entries);
+        updateAchievementsFromProgress(entries);
       }
     } catch (e) {
       console.log('Progress data unavailable');
@@ -258,7 +292,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProgressEntries((prev) => [entry, ...prev]);
 
     try {
-      const { error } = await supabase.from('progress_entries').insert([entry]);
+      const { error } = await supabase.from('saved_workouts').upsert(
+        {
+          client_key: entry.id,
+          sport: entry.sport,
+          workout_type: entry.workoutType,
+          duration: entry.duration,
+          intensity: entry.intensity ?? null,
+          calories_burned: entry.caloriesBurned ?? null,
+          notes: entry.notes ?? null,
+          completed_at: entry.date,
+        },
+        { onConflict: 'client_key', ignoreDuplicates: true }
+      );
       if (error) setSaveError(SAVE_FAILED);
     } catch (e) {
       setSaveError(SAVE_FAILED);
@@ -287,6 +333,94 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       setSaveError(SAVE_FAILED);
     }
+  };
+
+  const loadFood = async () => {
+    try {
+      const { data } = await supabase
+        .from('food_entries')
+        .select('*')
+        .order('entry_date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (data) setFoodEntries(data);
+    } catch (e) {
+      console.log('Food data unavailable');
+    }
+  };
+
+  const loadPreferences = async () => {
+    try {
+      const { data } = await supabase
+        .from('user_preferences')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+      setPreferences(data || null);
+    } catch (e) {
+      console.log('Preferences unavailable');
+    } finally {
+      setPreferencesLoaded(true);
+    }
+  };
+
+  const savePreferences = async (prefs: TrainingPreferences) => {
+    const { error } = await supabase
+      .from('user_preferences')
+      .upsert({ ...prefs, updated_at: new Date().toISOString() });
+    if (error) {
+      setSaveError(SAVE_FAILED);
+      return false;
+    }
+    setPreferences(prefs);
+    return true;
+  };
+
+  const addFoodEntry = async (entry: Omit<FoodEntry, 'id' | 'createdAt'>) => {
+    const { data, error } = await supabase
+      .from('food_entries')
+      .insert({
+        entry_date: entry.date,
+        meal_type: entry.mealType,
+        name: entry.name,
+        calories: entry.calories,
+        is_estimate: entry.isEstimate,
+      })
+      .select()
+      .maybeSingle();
+    if (error || !data) {
+      setSaveError(SAVE_FAILED);
+      return null;
+    }
+    setFoodEntries((prev) => [data, ...prev]);
+    return data;
+  };
+
+  const updateFoodEntry = async (id: string, changes: Partial<FoodEntry>) => {
+    const dbChanges: Record<string, unknown> = {};
+    if (changes.name !== undefined) dbChanges.name = changes.name;
+    if (changes.calories !== undefined) dbChanges.calories = changes.calories;
+    if (changes.mealType !== undefined) dbChanges.meal_type = changes.mealType;
+    if (changes.date !== undefined) dbChanges.entry_date = changes.date;
+    if (changes.isEstimate !== undefined) dbChanges.is_estimate = changes.isEstimate;
+
+    const { error } = await supabase.from('food_entries').update(dbChanges).eq('id', id);
+    if (error) {
+      setSaveError(SAVE_FAILED);
+      return false;
+    }
+    setFoodEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...changes } : e)));
+    return true;
+  };
+
+  const deleteFoodEntry = async (id: string) => {
+    const { error } = await supabase.from('food_entries').delete().eq('id', id);
+    if (error) {
+      setSaveError(SAVE_FAILED);
+      return false;
+    }
+    setFoodEntries((prev) => prev.filter((e) => e.id !== id));
+    return true;
   };
 
   const addHydrationEntry = async (entry: HydrationEntry) => {
@@ -321,10 +455,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addChatMessage,
         hydrationEntries,
         addHydrationEntry,
+        foodEntries,
+        addFoodEntry,
+        updateFoodEntry,
+        deleteFoodEntry,
+        preferences,
+        preferencesLoaded,
+        savePreferences,
         saveError,
         clearSaveError,
         streak,
         setStreak,
+        session,
       }}
     >
       {children}

@@ -1,2 +1,5 @@
 [functions.coach-chat]
 verify_jwt = true
+
+[functions.workout-generator]
+verify_jwt = true
