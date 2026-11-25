@@ -21,31 +21,113 @@ import {
 import { sportsConfig, TrainingPlan, ProgressEntry } from '../types';
 import { useApp } from '../context/AppContext';
 import { generateTrainingPlan } from '../lib/trainingGenerator';
+import { generateWorkout, GeneratedExercise } from '../lib/workoutApi';
+
+// Map AI exercises onto the plan's main-set slot structure so the existing
+// plan screens render them unchanged. Falls back to the static template on error.
+function applyAiExercises(
+  plan: TrainingPlan,
+  exercises: GeneratedExercise[],
+  improvement: string
+): TrainingPlan {
+  const sportDrills = exercises.map((ex) => ({
+    name: ex.name,
+    distance: ex.duration || ex.reps,
+    repetitions: ex.sets,
+    rest: ex.rest,
+    technique: ex.description,
+    difficulty: 'medium' as const,
+  }));
+
+  const byType = (type: GeneratedExercise['type']) =>
+    exercises
+      .filter((ex) => ex.type === type)
+      .map((ex) => ({
+        name: ex.name,
+        type,
+        sets: ex.sets,
+        reps: ex.reps,
+        description: ex.description,
+        difficulty: 'medium' as const,
+        muscleGroups: [] as string[],
+      }));
+
+  const strength = byType('strength');
+  const core = byType('core');
+  const mobility = byType('mobility');
+
+  return {
+    ...plan,
+    waterTraining: {
+      warmup: plan.waterTraining.warmup,
+      mainSet: sportDrills.length ? sportDrills : plan.waterTraining.mainSet,
+      drillSet: plan.waterTraining.drillSet,
+      cooldown: plan.waterTraining.cooldown,
+    },
+    drylandTraining: {
+      strength: strength.length ? strength : plan.drylandTraining.strength,
+      core: core.length ? core : plan.drylandTraining.core,
+      mobility: mobility.length ? mobility : plan.drylandTraining.mobility,
+    },
+    tips: [
+      ...plan.tips,
+      `AI-generated session for ${improvement}. Regenerate any time for fresh exercises.`,
+    ],
+  };
+}
 
 export function PlanPreviewPage() {
   const { sportId, improvementId } = useParams<{ sportId: string; improvementId: string }>();
   const navigate = useNavigate();
-  const { questionnaire, setCurrentPlan, addProgressEntry } = useApp();
+  const { questionnaire, setCurrentPlan, addProgressEntry, session } = useApp();
   const [isLoading, setIsLoading] = useState(true);
   const [plan, setPlan] = useState<TrainingPlan | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [savedToDashboard, setSavedToDashboard] = useState(false);
+  const [aiNotice, setAiNotice] = useState<string | null>(null);
 
   const sport = sportsConfig.find((s) => s.id === sportId);
   const improvement = sport?.improvements.find((i) => i.id === improvementId);
 
   useEffect(() => {
-    if (questionnaire && sport && improvement) {
-      const generatedPlan = generateTrainingPlan({
-        sport: sport.id,
-        improvement: improvement.id,
-        questionnaire,
-      });
-      setPlan(generatedPlan);
-      setCurrentPlan(generatedPlan);
+    let cancelled = false;
+    if (!questionnaire || !sport || !improvement) return;
+
+    const basePlan = generateTrainingPlan({
+      sport: sport.id,
+      improvement: improvement.id,
+      questionnaire,
+    });
+
+    if (!session) {
+      setPlan(basePlan);
       setIsLoading(false);
+      return;
     }
-  }, [questionnaire, sport, improvement, setCurrentPlan]);
+
+    generateWorkout(sport.name, `${improvement.label} — ${questionnaire.goal}`, {
+      skillLevel: questionnaire.skillLevel,
+      sessionsPerWeek: questionnaire.sessionsPerWeek,
+      sessionMinutes: questionnaire.trainingDuration,
+      equipment: questionnaire.equipment,
+      notes: `Weakness to address: ${questionnaire.weakness}`,
+    })
+      .then((exercises) => {
+        if (cancelled) return;
+        setPlan(applyAiExercises(basePlan, exercises, improvement.label));
+        setIsLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAiNotice('AI session is unavailable right now — showing your standard plan.');
+        setPlan(basePlan);
+        setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [questionnaire, sport, improvement, session, setCurrentPlan]);
 
   const handleSavePlan = async () => {
     setCurrentPlan(plan);
@@ -125,6 +207,12 @@ export function PlanPreviewPage() {
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Your Personalized Plan</h1>
           <p className="text-gray-600">Based on your profile, here's your recommended training program</p>
         </div>
+
+        {aiNotice && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-800" role="alert">
+            {aiNotice}
+          </div>
+        )}
 
         <div className="bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 rounded-3xl p-6 sm:p-8 text-white mb-8 shadow-2xl relative overflow-hidden">
           <div className="absolute inset-0 overflow-hidden">

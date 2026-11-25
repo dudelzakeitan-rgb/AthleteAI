@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Home, Dumbbell, TrendingUp, Apple, Info, Activity, MessageCircle, BarChart3, Settings, User } from 'lucide-react';
+import { Menu, X, Home, Dumbbell, TrendingUp, Apple, Info, Activity, MessageCircle, BarChart3, Settings, User, LogIn } from 'lucide-react';
+import { useApp } from '../context/AppContext';
 
 const navItems = [
   { path: '/', label: 'Home', icon: Home },
@@ -16,6 +17,7 @@ const navItems = [
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { session } = useApp();
 
   return (
     <>
@@ -54,12 +56,30 @@ export function Navigation() {
             </div>
 
             <div className="hidden lg:flex items-center gap-2">
-              <Link
-                to="/settings"
-                className="flex items-center space-x-1 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-all"
-              >
-                <User className="w-4 h-4" />
-              </Link>
+              {session ? (
+                <Link
+                  to="/settings"
+                  className="flex items-center space-x-1 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-all"
+                >
+                  <User className="w-4 h-4" />
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    to="/login"
+                    className="flex items-center space-x-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-all"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span>Login</span>
+                  </Link>
+                  <Link
+                    to="/signup"
+                    className="flex items-center space-x-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-lg transition-all"
+                  >
+                    Sign Up
+                  </Link>
+                </>
+              )}
             </div>
 
             <button
@@ -110,6 +130,25 @@ export function Navigation() {
               </Link>
             );
           })}
+          {!session && (
+            <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-gray-100">
+              <Link
+                to="/login"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition-all"
+              >
+                <LogIn className="w-5 h-5" />
+                <span className="font-medium">Login</span>
+              </Link>
+              <Link
+                to="/signup"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center justify-center px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold shadow-lg"
+              >
+                Sign Up
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </>

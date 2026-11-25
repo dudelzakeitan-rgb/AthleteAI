@@ -17,6 +17,7 @@ import { AboutPage } from './pages/AboutPage';
 import { CreateWorkoutPage } from './pages/CreateWorkoutPage';
 import { TrainingPreferencesPage } from './pages/TrainingPreferencesPage';
 import { OnboardingGate } from './pages/OnboardingGate';
+import { AuthPage } from './pages/AuthPage';
 
 function App() {
   return (
@@ -25,6 +26,8 @@ function App() {
         <div className="min-h-screen bg-gray-50">
           <Navigation />
             <Routes>
+              <Route path="/login" element={<AuthPage />} />
+              <Route path="/signup" element={<AuthPage />} />
               <Route path="/" element={<HomePage />} />
               <Route path="/sports" element={<OnboardingGate><SportsPage /></OnboardingGate>} />
               <Route path="/sports/:sportId" element={<SportDetailPage />} />

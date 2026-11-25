@@ -43,7 +43,7 @@ export function TrainingPlanPage() {
   const improvement = sport?.improvements.find((i) => i.id === improvementId);
 
   useEffect(() => {
-    if (questionnaire && sport && improvement) {
+    if (!currentPlan && questionnaire && sport && improvement) {
       const plan = generateTrainingPlan({
         sport: sport.id,
         improvement: improvement.id,
@@ -51,7 +51,7 @@ export function TrainingPlanPage() {
       });
       setCurrentPlan(plan);
     }
-  }, [questionnaire, sport, improvement, setCurrentPlan]);
+  }, [questionnaire, sport, improvement, currentPlan, setCurrentPlan]);
 
   const handleSaveProgress = async () => {
     if (isSaving || savedToAccount) return;

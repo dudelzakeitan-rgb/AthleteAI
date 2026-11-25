@@ -71,12 +71,14 @@ Deno.serve(async (req: Request) => {
     const system =
       "You are a certified sports coach. Return ONLY valid JSON, no markdown fences, matching exactly: " +
       '{"exercises":[{"name":string,"type":"strength"|"mobility"|"core"|"sport"|"cardio","sets":number,"reps":string,"duration":string,"rest":string,"description":string}]}. ' +
-      "Include 6-10 exercises ordered as a session: warm-up, main work, cooldown. Use reps for strength work and duration for timed work. Keep descriptions to one sentence.";
+      "Include 6-10 exercises ordered as a session: warm-up, main work, cooldown. Use reps for strength work and duration for timed work. Keep descriptions to one sentence. " +
+      "Vary exercise selection between requests: pick different (but equivalent) movements rather than a standard template, and adjust sets, reps, and rest to the athlete's details so two athletes with the same sport and goal still get noticeably different sessions.";
 
     const userPrompt =
       `Create one workout session. Sport: ${sport}. Goal: ${goal}. Experience: ${skillLevel}. ` +
       `Session length: ${sessionMinutes} minutes (they train ${sessionsPerWeek}x per week). ` +
       (equipment.length ? `Available equipment: ${equipment.join(", ")}. ` : "No equipment, bodyweight only. ") +
+      `Variety seed (use it to pick different exercises than other sessions): ${crypto.randomUUID()}. ` +
       (notes ? `Extra context from the athlete: ${notes}.` : "");
 
     const groqResponse = await fetch(GROQ_URL, {

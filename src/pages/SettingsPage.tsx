@@ -47,7 +47,7 @@ const goalOptions = [
 ];
 
 export function SettingsPage() {
-  const { userProfile, setUserProfile } = useApp();
+  const { userProfile, setUserProfile, session } = useApp();
   const [activeSection, setActiveSection] = useState<'profile' | 'sport' | 'notifications' | 'account'>('profile');
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
@@ -438,12 +438,18 @@ export function SettingsPage() {
                       </div>
                     </button>
 
-                    <button className="w-full flex items-center justify-between p-4 bg-red-50 rounded-xl hover:bg-red-100 transition-colors text-left">
+                    <button
+                      onClick={() => session && supabase.auth.signOut()}
+                      disabled={!session}
+                      className="w-full flex items-center justify-between p-4 bg-red-50 rounded-xl hover:bg-red-100 transition-colors text-left disabled:opacity-50"
+                    >
                       <div className="flex items-center gap-4">
                         <LogOut className="w-5 h-5 text-red-600" />
                         <div>
                           <div className="font-medium text-red-900">Sign Out</div>
-                          <div className="text-sm text-red-600">Log out of your account</div>
+                          <div className="text-sm text-red-600">
+                            {session ? 'Log out of your account' : 'You are not signed in'}
+                          </div>
                         </div>
                       </div>
                     </button>
