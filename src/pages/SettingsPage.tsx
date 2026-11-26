@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   User,
   Mail,
@@ -15,6 +16,7 @@ import {
   Shield,
   Globe,
   HelpCircle,
+  ClipboardList,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { sportsConfig, SkillLevel, Sport } from '../types';
@@ -48,7 +50,8 @@ const goalOptions = [
 
 export function SettingsPage() {
   const { userProfile, setUserProfile, session } = useApp();
-  const [activeSection, setActiveSection] = useState<'profile' | 'sport' | 'notifications' | 'account'>('profile');
+  const navigate = useNavigate();
+  const [activeSection, setActiveSection] = useState<'profile' | 'sport' | 'onboarding' | 'notifications' | 'account'>('profile');
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -136,6 +139,7 @@ export function SettingsPage() {
   const sections = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'sport', label: 'Sport & Goals', icon: Target },
+    { id: 'onboarding', label: 'Training Profile', icon: ClipboardList },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'account', label: 'Account', icon: Shield },
   ];
@@ -342,6 +346,27 @@ export function SettingsPage() {
                       ))}
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {activeSection === 'onboarding' && (
+              <div className="space-y-6 animate-fade-in">
+                <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mx-auto mb-4">
+                    <ClipboardList className="w-7 h-7 text-white" />
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">Training Profile</h2>
+                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                    Edit the answers that power the AI Coach and every workout: sports, goals,
+                    schedule, equipment, injuries, and dietary needs.
+                  </p>
+                  <button
+                    onClick={() => navigate('/settings/onboarding')}
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-full hover:shadow-lg transition-all"
+                  >
+                    <ClipboardList className="w-5 h-5" /> Edit Training Profile
+                  </button>
                 </div>
               </div>
             )}

@@ -13,7 +13,7 @@ const MAX_HISTORY_MESSAGES = 12;
 const MAX_MESSAGE_CHARS = 2000;
 const RATE_LIMIT_PER_HOUR = 30;
 const SYSTEM_PROMPT =
-  "You are Athlatai's AI sports coach. Answer the athlete's latest question directly and specifically, using the earlier messages for context. Do not repeat advice already given in this conversation unless the athlete asks; build on it instead. Keep answers short and practical. For injuries or medical concerns, recommend a qualified professional. When you suggest a specific meal with a calorie amount, end your reply with a final line in exactly this format and nothing after it: [MEAL: <meal name> | <calories> kcal]. Include the MEAL line only when the reply suggests one concrete meal with a calorie estimate.";
+  "You are Athlatai's AI sports coach. Answer the athlete's latest question directly and specifically, using the earlier messages for context. Do not repeat advice already given in this conversation unless the athlete asks; build on it instead. Keep answers short and practical. For injuries or medical concerns, recommend a qualified professional. Never suggest restrictive diets or weight-loss targets for athletes under 18. When you suggest a specific meal with a calorie amount, end your reply with a final line in exactly this format and nothing after it: [MEAL: <meal name> | <calories> kcal]. Include the MEAL line only when the reply suggests one concrete meal with a calorie estimate.";
 
 type ChatTurn = { role: "user" | "assistant"; content: string };
 
@@ -24,6 +24,13 @@ interface PreferenceInput {
   equipment?: unknown;
   sessions_per_week?: unknown;
   session_minutes?: unknown;
+  age?: unknown;
+  height_cm?: unknown;
+  weight_kg?: unknown;
+  training_days?: unknown;
+  injuries?: unknown;
+  current_schedule?: unknown;
+  diet_notes?: unknown;
 }
 
 function asStringArray(value: unknown): string[] {
@@ -41,17 +48,37 @@ function describePreferences(prefs: PreferenceInput): string | null {
   const goals = asStringArray(prefs.goals);
   const sports = asStringArray(prefs.sports);
   const equipment = asStringArray(prefs.equipment);
+  const trainingDays = asStringArray(prefs.training_days);
   const skill = typeof prefs.skill_level === "string" && prefs.skill_level.trim() ? prefs.skill_level.trim() : null;
   const sessions = asPositiveNumber(prefs.sessions_per_week);
   const minutes = asPositiveNumber(prefs.session_minutes);
+  const age = asPositiveNumber(prefs.age);
+  const height = asPositiveNumber(prefs.height_cm);
+  const weight = asPositiveNumber(prefs.weight_kg);
+  const text = (v: unknown, max: number) =>
+    typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null;
+  const injuries = text(prefs.injuries, 200);
+  const schedule = text(prefs.current_schedule, 200);
+  const diet = text(prefs.diet_notes, 200);
   if (goals.length) parts.push(`Goals: ${goals.join(", ")}`);
-  if (sports.length) parts.push(`Preferred sports: ${sports.join(", ")}`);
-  if (skill) parts.push(`Skill level: ${skill}`);
-  if (equipment.length) parts.push(`Available equipment: ${equipment.join(", ")}`);
-  if (sessions !== null) parts.push(`Sessions per week: ${sessions}`);
-  if (minutes !== null) parts.push(`Typical session length: ${minutes} minutes`);
+  if (sports.length) parts.push(`Sports: ${sports.join(", ")}`);
+  if (skill) parts.push(`Level: ${skill}`);
+  if (equipment.length) parts.push(`Equipment: ${equipment.join(", ")}`);
+  if (sessions !== null) parts.push(`${sessions}x/week`);
+  if (minutes !== null) parts.push(`${minutes} min/session`);
+  if (trainingDays.length) parts.push(`Days: ${trainingDays.join(", ")}`);
+  if (age !== null) parts.push(`Age: ${age}`);
+  if (height !== null) parts.push(`Height: ${height}cm`);
+  if (weight !== null) parts.push(`Weight: ${weight}kg`);
+  if (injuries) parts.push(`Injuries: ${injuries}`);
+  if (schedule) parts.push(`Schedule: ${schedule}`);
+  if (diet) parts.push(`Diet: ${diet}`);
   if (!parts.length) return null;
-  return `Athlete's saved training profile (use it when relevant): ${parts.join("; ")}.`;
+  const minor =
+    age !== null && age < 18
+      ? " The athlete is under 18: keep advice age-appropriate, avoid maximal training loads, and never suggest restrictive diets or weight-loss targets."
+      : "";
+  return `Athlete's saved training profile (compact, use when relevant): ${parts.join(" | ")}.${minor}`;
 }
 
 function json(body: unknown, status = 200) {

@@ -67,19 +67,34 @@ Deno.serve(async (req: Request) => {
     const sessionMinutes = num(prefs.sessionMinutes) ?? 60;
     const equipment = arr(prefs.equipment);
     const notes = str(prefs.notes, 300);
+    const age = num(prefs.age);
+    const injuries = str(prefs.injuries, 200);
+    const currentSchedule = str(prefs.currentSchedule, 200);
+    const recentWorkouts = str(prefs.recentWorkouts, 400);
+    const feedback = str(prefs.feedback, 200);
+    const isMinor = age !== null && age < 18;
 
     const system =
       "You are a certified sports coach. Return ONLY valid JSON, no markdown fences, matching exactly: " +
       '{"exercises":[{"name":string,"type":"strength"|"mobility"|"core"|"sport"|"cardio","sets":number,"reps":string,"duration":string,"rest":string,"description":string}]}. ' +
       "Include 6-10 exercises ordered as a session: warm-up, main work, cooldown. Use reps for strength work and duration for timed work. Keep descriptions to one sentence. " +
-      "Vary exercise selection between requests: pick different (but equivalent) movements rather than a standard template, and adjust sets, reps, and rest to the athlete's details so two athletes with the same sport and goal still get noticeably different sessions.";
+      "Vary the session against the athlete's recent workouts: keep the same sport, goal, and structure, but pick different (equivalent) movements and adjust sets, reps, intensity, and rest. " +
+      "Scale intensity to the athlete's age, recovery, and feedback — never auto-increase difficulty, and keep effort moderate if feedback mentions fatigue or soreness." +
+      (isMinor
+        ? " The athlete is under 18: use age-appropriate exercises and loads, favor technique and fun, avoid maximal lifts, and never include weight-loss or cutting guidance."
+        : "");
 
     const userPrompt =
       `Create one workout session. Sport: ${sport}. Goal: ${goal}. Experience: ${skillLevel}. ` +
       `Session length: ${sessionMinutes} minutes (they train ${sessionsPerWeek}x per week). ` +
+      (age !== null ? `Age: ${age}. ` : "") +
       (equipment.length ? `Available equipment: ${equipment.join(", ")}. ` : "No equipment, bodyweight only. ") +
-      `Variety seed (use it to pick different exercises than other sessions): ${crypto.randomUUID()}. ` +
-      (notes ? `Extra context from the athlete: ${notes}.` : "");
+      (recentWorkouts ? `Recent workouts (vary this session from these): ${recentWorkouts}. ` : "") +
+      (feedback ? `Athlete feedback (scale intensity to it): ${feedback}. ` : "") +
+      (injuries ? `Injuries/limitations (work around them): ${injuries}. ` : "") +
+      (currentSchedule ? `Existing schedule: ${currentSchedule}. ` : "") +
+      `Variety seed: ${crypto.randomUUID()}.` +
+      (notes ? ` Extra context: ${notes}.` : "");
 
     const groqResponse = await fetch(GROQ_URL, {
       method: "POST",

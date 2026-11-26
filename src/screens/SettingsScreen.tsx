@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, User, Save, Check, LogOut, AlertCircle } from 'lucide-react-native';
+import { ChevronLeft, User, Save, Check, LogOut, AlertCircle, ClipboardList, ChevronRight } from 'lucide-react-native';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -137,6 +137,17 @@ export function SettingsScreen() {
             </Text>
           </View>
         )}
+
+        <TouchableOpacity onPress={() => navigation.navigate('Onboarding' as any)} className="mt-3">
+          <View className="bg-white rounded-2xl p-4 flex-row items-center border border-purple-100">
+            <ClipboardList size={18} color="#8b5cf6" />
+            <View className="flex-1 ml-3">
+              <Text className="text-gray-900 font-semibold">Edit Training Profile</Text>
+              <Text className="text-gray-400 text-xs mt-0.5">Goals, schedule, injuries & dietary needs</Text>
+            </View>
+            <ChevronRight size={16} color="#d1d5db" />
+          </View>
+        </TouchableOpacity>
 
         <View className="bg-amber-50 rounded-2xl p-4 mt-3">
           <Text className="text-amber-800 font-semibold mb-1">App Version</Text>

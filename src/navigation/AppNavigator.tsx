@@ -17,10 +17,12 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 import { AboutScreen } from '../screens/AboutScreen';
 import { MoreScreen } from '../screens/MoreScreen';
 import { AuthScreen } from '../screens/AuthScreen';
+import { OnboardingScreen } from '../screens/OnboardingScreen';
 
 export type RootStackParamList = {
   MainTabs: undefined;
   Auth: undefined;
+  Onboarding: undefined;
   SportDetail: { sportId: string };
   Questionnaire: { sportId: string; improvementId: string };
   PlanPreview: { sportId: string; improvementId: string };
@@ -117,6 +119,7 @@ export function AppNavigator() {
     >
       <Stack.Screen name="MainTabs" component={TabNavigator} />
       <Stack.Screen name="Auth" component={AuthScreen} />
+      <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       <Stack.Screen name="SportDetail" component={SportDetailScreen} />
       <Stack.Screen name="Questionnaire" component={QuestionnaireScreen} />
       <Stack.Screen name="PlanPreview" component={PlanPreviewScreen} />

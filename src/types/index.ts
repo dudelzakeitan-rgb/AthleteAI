@@ -180,6 +180,53 @@ export interface TrainingPreferences {
   equipment: string[];
   sessions_per_week: number | null;
   session_minutes: number | null;
+  age?: number | null;
+  height_cm?: number | null;
+  weight_kg?: number | null;
+  training_days?: string[] | null;
+  injuries?: string | null;
+  current_schedule?: string | null;
+  diet_notes?: string | null;
+}
+
+export const TRAINING_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+
+export function describePreferencesForAi(prefs: {
+  goals?: string[] | null;
+  sports?: string[] | null;
+  skill_level?: string | null;
+  equipment?: string[] | null;
+  sessions_per_week?: number | null;
+  session_minutes?: number | null;
+  age?: number | null;
+  height_cm?: number | null;
+  weight_kg?: number | null;
+  training_days?: string[] | null;
+  injuries?: string | null;
+  current_schedule?: string | null;
+  diet_notes?: string | null;
+} | null): string | null {
+  if (!prefs) return null;
+  const parts: string[] = [];
+  if (prefs.goals?.length) parts.push(`Goals: ${prefs.goals.join(', ')}`);
+  if (prefs.sports?.length) parts.push(`Sports: ${prefs.sports.join(', ')}`);
+  if (prefs.skill_level) parts.push(`Level: ${prefs.skill_level}`);
+  if (prefs.equipment?.length) parts.push(`Equipment: ${prefs.equipment.join(', ')}`);
+  if (prefs.sessions_per_week) parts.push(`${prefs.sessions_per_week}x/week`);
+  if (prefs.session_minutes) parts.push(`${prefs.session_minutes} min/session`);
+  if (prefs.age) parts.push(`Age: ${prefs.age}`);
+  if (prefs.height_cm) parts.push(`Height: ${prefs.height_cm}cm`);
+  if (prefs.weight_kg) parts.push(`Weight: ${prefs.weight_kg}kg`);
+  if (prefs.training_days?.length) parts.push(`Days: ${prefs.training_days.join(', ')}`);
+  if (prefs.injuries?.trim()) parts.push(`Injuries: ${prefs.injuries.trim()}`);
+  if (prefs.current_schedule?.trim()) parts.push(`Schedule: ${prefs.current_schedule.trim()}`);
+  if (prefs.diet_notes?.trim()) parts.push(`Diet: ${prefs.diet_notes.trim()}`);
+  return parts.length ? parts.join(' | ') : null;
+}
+
+export function isMinor(prefs: { age?: number | null } | null): boolean {
+  const age = prefs?.age;
+  return typeof age === 'number' && age > 0 && age < 18;
 }
 
 export interface DailyMealPlan {

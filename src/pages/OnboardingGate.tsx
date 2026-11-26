@@ -23,7 +23,8 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
           the answers for every workout and coach chat, so you never fill this in again.
         </p>
         <Link
-          to="/settings/training-preferences"
+          to="/onboarding"
+          state={{ from: location.pathname + location.search }}
           className="inline-flex items-center px-8 py-3.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-full font-semibold hover:shadow-lg transition-all"
         >
           Set My Training Preferences

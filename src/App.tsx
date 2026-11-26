@@ -17,6 +17,7 @@ import { AboutPage } from './pages/AboutPage';
 import { CreateWorkoutPage } from './pages/CreateWorkoutPage';
 import { TrainingPreferencesPage } from './pages/TrainingPreferencesPage';
 import { OnboardingGate } from './pages/OnboardingGate';
+import { OnboardingPage } from './pages/OnboardingPage';
 import { AuthPage } from './pages/AuthPage';
 
 function App() {
@@ -42,6 +43,8 @@ function App() {
               <Route path="/nutrition" element={<NutritionPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/settings/training-preferences" element={<TrainingPreferencesPage />} />
+              <Route path="/onboarding" element={<OnboardingPage />} />
+              <Route path="/settings/onboarding" element={<OnboardingPage />} />
               <Route path="/about" element={<AboutPage />} />
             </Routes>
         </div>

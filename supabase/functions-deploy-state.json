@@ -3,11 +3,11 @@
   "functions": {
     "coach-chat": {
       "hasChanged": false,
-      "hash": "cccace13f8f1891d209ab14e7955a6b94c80b2620a56980a3b4222356c7e2d76"
+      "hash": "2843a88ab853fe1f0b868d7a39d5f75aa1cfa7d521d86332cc1af61c4e805d4a"
     },
     "workout-generator": {
       "hasChanged": false,
-      "hash": "097407830dc1b5fed1eaa21fa87f4af3080a95b8c3bdbedd163d6eb237dfe190"
+      "hash": "506b2159cac0054929c3a142ec3a7be5e29be01724aef025123e639ccbac686e"
     }
   }
 }

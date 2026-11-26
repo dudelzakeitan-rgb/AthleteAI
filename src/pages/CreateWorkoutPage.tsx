@@ -5,12 +5,12 @@ import {
   Timer, Repeat, Info, Sliders,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { generateWorkout, GeneratedExercise } from '../lib/workoutApi';
+import { generateWorkout, GeneratedExercise, summarizeRecentWorkouts, claimWorkoutCall } from '../lib/workoutApi';
 import { sportsConfig } from '../types';
 
 export function CreateWorkoutPage() {
   const navigate = useNavigate();
-  const { preferences, preferencesLoaded, session } = useApp();
+  const { preferences, preferencesLoaded, session, progressEntries } = useApp();
   const [sport, setSport] = useState('');
   const [goal, setGoal] = useState('');
   const [sessionMinutes, setSessionMinutes] = useState<number | null>(null);
@@ -30,6 +30,8 @@ export function CreateWorkoutPage() {
 
   const handleGenerate = async () => {
     if (!session) return;
+    const dedupeKey = `create:${sport}:${goal}`;
+    if (!claimWorkoutCall(dedupeKey)) return;
     setIsLoading(true);
     setError(null);
     setExercises(null);
@@ -39,6 +41,10 @@ export function CreateWorkoutPage() {
         sessionsPerWeek: preferences?.sessions_per_week ?? undefined,
         sessionMinutes: sessionMinutes ?? preferences?.session_minutes ?? undefined,
         equipment: preferences?.equipment ?? [],
+        age: preferences?.age ?? null,
+        injuries: preferences?.injuries ?? null,
+        currentSchedule: preferences?.current_schedule ?? null,
+        recentWorkouts: summarizeRecentWorkouts(progressEntries),
       });
       setExercises(result);
     } catch (err) {

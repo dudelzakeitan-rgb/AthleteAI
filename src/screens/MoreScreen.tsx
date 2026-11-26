@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  TrendingUp, Apple, Settings, Info, ChevronRight, LogIn, LogOut,
+  TrendingUp, Apple, Settings, Info, ChevronRight, LogIn, LogOut, ClipboardList,
 } from 'lucide-react-native';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
@@ -54,6 +54,19 @@ export function MoreScreen() {
         )}
 
         <View className="bg-white rounded-2xl overflow-hidden">
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Onboarding' as any)}
+            className="flex-row items-center px-4 py-4 border-b border-gray-50"
+          >
+            <View className="w-10 h-10 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: '#8b5cf615' }}>
+              <ClipboardList size={20} color="#8b5cf6" />
+            </View>
+            <View className="flex-1">
+              <Text className="font-semibold text-gray-900">Training Profile</Text>
+              <Text className="text-gray-400 text-xs mt-0.5">Edit goals, schedule, injuries & diet</Text>
+            </View>
+            <ChevronRight size={16} color="#d1d5db" />
+          </TouchableOpacity>
           {items.map(({ icon: Icon, label, screen, color, desc }, i) => (
             <TouchableOpacity
               key={label}

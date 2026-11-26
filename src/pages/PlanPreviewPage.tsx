@@ -21,7 +21,7 @@ import {
 import { sportsConfig, TrainingPlan, ProgressEntry } from '../types';
 import { useApp } from '../context/AppContext';
 import { generateTrainingPlan } from '../lib/trainingGenerator';
-import { generateWorkout, GeneratedExercise } from '../lib/workoutApi';
+import { generateWorkout, GeneratedExercise, summarizeRecentWorkouts } from '../lib/workoutApi';
 
 // Map AI exercises onto the plan's main-set slot structure so the existing
 // plan screens render them unchanged. Falls back to the static template on error.
@@ -79,7 +79,7 @@ function applyAiExercises(
 export function PlanPreviewPage() {
   const { sportId, improvementId } = useParams<{ sportId: string; improvementId: string }>();
   const navigate = useNavigate();
-  const { questionnaire, setCurrentPlan, addProgressEntry, session } = useApp();
+  const { questionnaire, setCurrentPlan, addProgressEntry, session, preferences, progressEntries } = useApp();
   const [isLoading, setIsLoading] = useState(true);
   const [plan, setPlan] = useState<TrainingPlan | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -110,7 +110,11 @@ export function PlanPreviewPage() {
       sessionsPerWeek: questionnaire.sessionsPerWeek,
       sessionMinutes: questionnaire.trainingDuration,
       equipment: questionnaire.equipment,
+      age: preferences?.age ?? questionnaire.age,
+      injuries: preferences?.injuries ?? null,
+      currentSchedule: preferences?.current_schedule ?? null,
       notes: `Weakness to address: ${questionnaire.weakness}`,
+      recentWorkouts: summarizeRecentWorkouts(progressEntries),
     })
       .then((exercises) => {
         if (cancelled) return;
@@ -127,7 +131,7 @@ export function PlanPreviewPage() {
     return () => {
       cancelled = true;
     };
-  }, [questionnaire, sport, improvement, session, setCurrentPlan]);
+  }, [questionnaire, sport, improvement, session, setCurrentPlan, preferences, progressEntries]);
 
   const handleSavePlan = async () => {
     setCurrentPlan(plan);

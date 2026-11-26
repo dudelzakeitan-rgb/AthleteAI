@@ -25,7 +25,6 @@ function describeAuthError(message: string): string {
 }
 
 export function AuthPage() {
-  const { savePreferences } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const initialMode: Mode = location.pathname === '/signup' ? 'signup' : 'signin';
@@ -90,14 +89,9 @@ export function AuthPage() {
 
     if (!isSignIn && result.data.user) {
       await createProfile(result.data.user.id, trimmedName);
-      await savePreferences({
-        goals: [],
-        sports: [],
-        skill_level: null,
-        equipment: [],
-        sessions_per_week: null,
-        session_minutes: null,
-      });
+      navigate('/onboarding', { replace: true });
+      setIsSubmitting(false);
+      return;
     }
 
     navigate('/', { replace: true });

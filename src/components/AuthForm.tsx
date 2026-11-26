@@ -4,7 +4,6 @@ import { User, LogIn } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '../lib/supabase';
-import { useApp } from '../context/AppContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -21,7 +20,6 @@ function describeAuthError(message: string): string {
 
 export function AuthForm() {
   const navigation = useNavigation<Nav>();
-  const { savePreferences } = useApp();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -76,14 +74,9 @@ export function AuthForm() {
 
     if (!isSignIn && result.data.user) {
       await createProfile(result.data.user.id, trimmedName);
-      await savePreferences({
-        goals: [],
-        sports: [],
-        skill_level: null,
-        equipment: [],
-        sessions_per_week: null,
-        session_minutes: null,
-      });
+      (navigation as any).replace('Onboarding');
+      setIsSubmitting(false);
+      return;
     }
 
     navigation.navigate('MainTabs' as never);

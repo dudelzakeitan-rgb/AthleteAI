@@ -11,7 +11,7 @@ import {
 import { sportsConfig, TrainingPlan, ProgressEntry, WaterDrill, DrylandExercise } from '../types';
 import { useApp } from '../context/AppContext';
 import { generateTrainingPlan } from '../lib/trainingGenerator';
-import { generateWorkout, GeneratedExercise } from '../lib/workoutApi';
+import { generateWorkout, GeneratedExercise, summarizeRecentWorkouts, claimWorkoutCall } from '../lib/workoutApi';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -72,7 +72,7 @@ function applyAiExercises(plan: TrainingPlan, exercises: GeneratedExercise[], sk
 export function PlanPreviewScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
-  const { questionnaire, setCurrentPlan, addProgressEntry, session } = useApp();
+  const { questionnaire, setCurrentPlan, addProgressEntry, session, progressEntries, preferences } = useApp();
   const { sportId, improvementId } = route.params;
 
   const [plan, setPlan] = useState<TrainingPlan | null>(null);
@@ -91,13 +91,17 @@ export function PlanPreviewScreen() {
       setPlan(generated);
       setCurrentPlan(generated);
 
-      if (session) {
+      if (session && claimWorkoutCall(`plan:${sportId}:${improvementId}`)) {
         generateWorkout(sport.id, questionnaire.goal, {
           skillLevel: questionnaire.skillLevel,
           sessionsPerWeek: questionnaire.sessionsPerWeek,
           sessionMinutes: questionnaire.trainingDuration,
           equipment: questionnaire.equipment,
+          age: preferences?.age ?? questionnaire.age,
+          injuries: preferences?.injuries ?? null,
+          currentSchedule: preferences?.current_schedule ?? null,
           notes: `Weakness: ${questionnaire.weakness}. Improvement focus: ${improvement.label}.`,
+          recentWorkouts: summarizeRecentWorkouts(progressEntries),
         })
           .then(exercises => {
             const aiPlan = applyAiExercises(generated, exercises, questionnaire.skillLevel);
