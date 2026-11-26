@@ -4,8 +4,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  TrendingUp, Apple, Settings, Info, ChevronRight,
-} from 'lucide-react-native';import { RootStackParamList } from '../navigation/AppNavigator';
+  TrendingUp, Apple, Settings, Info, ChevronRight, LogIn, LogOut,
+} from 'lucide-react-native';
+import { useApp } from '../context/AppContext';
+import { supabase } from '../lib/supabase';
+import { RootStackParamList } from '../navigation/AppNavigator';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -18,6 +21,11 @@ const items = [
 
 export function MoreScreen() {
   const navigation = useNavigation<Nav>();
+  const { session } = useApp();
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
@@ -27,6 +35,24 @@ export function MoreScreen() {
       </LinearGradient>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 12 }}>
+        {!session && (
+          <View className="bg-white rounded-2xl overflow-hidden mb-3">
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Auth')}
+              className="flex-row items-center px-4 py-4"
+            >
+              <View className="w-10 h-10 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: '#3b82f615' }}>
+                <LogIn size={20} color="#3b82f6" />
+              </View>
+              <View className="flex-1">
+                <Text className="font-semibold text-gray-900">Login or Sign Up</Text>
+                <Text className="text-gray-400 text-xs mt-0.5">Sync your training across devices</Text>
+              </View>
+              <ChevronRight size={16} color="#d1d5db" />
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View className="bg-white rounded-2xl overflow-hidden">
           {items.map(({ icon: Icon, label, screen, color, desc }, i) => (
             <TouchableOpacity
@@ -45,6 +71,23 @@ export function MoreScreen() {
             </TouchableOpacity>
           ))}
         </View>
+
+        {session && (
+          <View className="bg-white rounded-2xl overflow-hidden mt-3">
+            <TouchableOpacity
+              onPress={handleSignOut}
+              className="flex-row items-center px-4 py-4"
+            >
+              <View className="w-10 h-10 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: '#ef444415' }}>
+                <LogOut size={20} color="#ef4444" />
+              </View>
+              <View className="flex-1">
+                <Text className="font-semibold text-red-500">Sign Out</Text>
+                <Text className="text-gray-400 text-xs mt-0.5">Your data stays synced to your account</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

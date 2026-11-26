@@ -1,170 +1,200 @@
 import { useState } from 'react';
-import { X, CheckCircle } from 'lucide-react';
+import { Modal, View, Text, TextInput, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { X } from 'lucide-react-native';
 import { useApp } from '../context/AppContext';
+import { FoodEntry } from '../types';
 
-export interface FoodFormInitial {
-  name?: string;
-  calories?: number;
-  isEstimate?: boolean;
-  mealType?: 'breakfast' | 'lunch' | 'dinner' | 'snacks';
-  date?: string;
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snacks';
+
+const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snacks'];
+
+export interface FoodFormValues {
+  name: string;
+  calories: string;
+  mealType: MealType;
+  isEstimate: boolean;
 }
 
-interface Props {
-  initial?: FoodFormInitial;
-  editingId?: string;
-  initialEditingValues?: { name?: string; calories?: number; mealType?: FoodFormInitial['mealType']; date?: string };
+export interface FoodFormResult {
+  name: string;
+  calories: number;
+  mealType: MealType;
+  isEstimate: boolean;
+}
+
+export function todayKey(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+export function entryDateKey(entry: any): string {
+  const raw = entry?.date ?? entry?.entry_date;
+  return typeof raw === 'string' ? raw.slice(0, 10) : todayKey();
+}
+
+export function entryMealType(entry: any): MealType {
+  const raw = entry?.mealType ?? entry?.meal_type;
+  return MEAL_TYPES.includes(raw) ? (raw as MealType) : 'snacks';
+}
+
+export function entryIsEstimate(entry: any): boolean {
+  return Boolean(entry?.isEstimate ?? entry?.is_estimate);
+}
+
+/** Parses the `[MEAL: <name> | <kcal> kcal]` marker emitted by the coach edge function. */
+export function parseMealMarker(text: string): { name: string; calories: number } | null {
+  const match = text.match(/\[MEAL:\s*(.+?)\s*\|\s*(\d+(?:\.\d+)?)\s*kcal\s*\]/i);
+  if (!match) return null;
+  const calories = Number(match[2]);
+  if (!match[1].trim() || !Number.isFinite(calories)) return null;
+  return { name: match[1].trim(), calories: Math.round(calories) };
+}
+
+export function stripMealMarker(text: string): string {
+  return text.replace(/\s*\[MEAL:\s*.+?\s*\|\s*\d+(?:\.\d+)?\s*kcal\s*\]\s*/i, '');
+}
+
+export function FoodEntryModal({
+  visible,
+  onClose,
+  initial,
+  onSubmit,
+}: {
+  visible: boolean;
   onClose: () => void;
-}
-
-const MEAL_TYPES: FoodFormInitial['mealType'][] = ['breakfast', 'lunch', 'dinner', 'snacks'];
-
-export function FoodEntryForm({ initial, editingId, initialEditingValues, onClose }: Props) {
-  const { addFoodEntry, updateFoodEntry } = useApp();
-  const source = initial ?? initialEditingValues ?? {};
-  const [name, setName] = useState(source.name ?? '');
-  const [calories, setCalories] = useState(String(source.calories ?? ''));
-  const [mealType, setMealType] = useState<FoodFormInitial['mealType']>(source.mealType ?? 'breakfast');
-  const [date, setDate] = useState(source.date ?? new Date().toISOString().slice(0, 10));
-  const [isSaving, setIsSaving] = useState(false);
+  initial?: Partial<FoodFormResult>;
+  onSubmit: (result: FoodFormResult) => Promise<boolean>;
+}) {
+  const { session } = useApp();
+  const [name, setName] = useState(initial?.name ?? '');
+  const [calories, setCalories] = useState(
+    initial?.calories !== undefined ? String(initial.calories) : ''
+  );
+  const [mealType, setMealType] = useState<MealType>(initial?.mealType ?? 'breakfast');
+  const [isEstimate, setIsEstimate] = useState(initial?.isEstimate ?? true);
   const [error, setError] = useState<string | null>(null);
-
-  const isEstimate = Boolean(initial?.isEstimate);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleSubmit = async () => {
-    if (!name.trim()) {
-      setError('Enter what you ate.');
+    const trimmedName = name.trim();
+    const parsedCalories = Number(calories);
+    if (!trimmedName || !Number.isFinite(parsedCalories) || parsedCalories <= 0) {
+      setError('Enter a food name and a calorie amount above zero.');
       return;
     }
-    const parsedCalories = parseInt(calories, 10);
-    if (!Number.isFinite(parsedCalories) || parsedCalories < 0) {
-      setError('Enter the calories for that portion.');
+    if (!session) {
+      setError('Sign in first so your food log is saved to your account.');
       return;
     }
-
     setIsSaving(true);
     setError(null);
-
-    if (editingId) {
-      const ok = await updateFoodEntry(editingId, {
-        name: name.trim(),
-        calories: parsedCalories,
-        mealType: mealType!,
-        date,
-        isEstimate: false,
-      });
-      setIsSaving(false);
-      if (!ok) setError('Could not save the change. Please try again.');
-      else onClose();
-      return;
-    }
-
-    const saved = await addFoodEntry({
-      date,
-      mealType: mealType!,
-      name: name.trim(),
-      calories: parsedCalories,
+    const ok = await onSubmit({
+      name: trimmedName,
+      calories: Math.round(parsedCalories),
+      mealType,
       isEstimate,
     });
     setIsSaving(false);
-    if (!saved) setError('Could not save that. Please try again.');
-    else onClose();
+    if (ok) {
+      onClose();
+    } else {
+      setError('Could not save. Check your connection and try again.');
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-bold text-gray-900">
-            {editingId ? 'Edit Food' : 'Add Food'}
-          </h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+        <View className="flex-row items-center justify-between px-5 py-4 bg-white border-b border-gray-100">
+          <TouchableOpacity onPress={onClose}>
+            <X size={22} color="#6b7280" />
+          </TouchableOpacity>
+          <Text className="font-bold text-gray-900 text-base">
+            {initial?.name !== undefined ? 'Edit Food' : 'Add Food'}
+          </Text>
+          <View style={{ width: 22 }} />
+        </View>
 
-        <div className="space-y-4">
-          {isEstimate && (
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-sm text-blue-800">
-              Calories below are the AI Coach's estimate. Correct them if needed.
-            </div>
-          )}
+        <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+          <Text className="text-sm text-gray-600 mb-1">Food</Text>
+          <TextInput
+            className="bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 mb-4"
+            value={name}
+            onChangeText={setName}
+            placeholder="e.g., Grilled chicken salad"
+            placeholderTextColor="#9ca3af"
+          />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">What did you eat?</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Oatmeal with banana"
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-            />
-          </div>
+          <Text className="text-sm text-gray-600 mb-1">Calories</Text>
+          <TextInput
+            className="bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 mb-4"
+            value={calories}
+            onChangeText={setCalories}
+            placeholder="e.g., 420"
+            placeholderTextColor="#9ca3af"
+            keyboardType="number-pad"
+          />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Calories for that portion
-            </label>
-            <input
-              type="number"
-              min={0}
-              value={calories}
-              onChange={(e) => setCalories(e.target.value)}
-              placeholder="e.g., 350"
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-            />
-          </div>
+          <Text className="text-sm text-gray-600 mb-2">Meal</Text>
+          <View className="flex-row flex-wrap gap-2 mb-5">
+            {MEAL_TYPES.map((m) => (
+              <TouchableOpacity
+                key={m}
+                onPress={() => setMealType(m)}
+                className={`px-4 py-2 rounded-full border ${mealType === m ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-gray-200'}`}
+              >
+                <Text className={`text-sm font-medium capitalize ${mealType === m ? 'text-white' : 'text-gray-700'}`}>
+                  {m}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Meal</label>
-            <div className="grid grid-cols-4 gap-2">
-              {MEAL_TYPES.map((type) => (
-                <button
-                  key={type}
-                  onClick={() => setMealType(type)}
-                  className={`py-2 rounded-xl text-sm font-medium capitalize transition-all ${
-                    mealType === type
-                      ? 'bg-emerald-500 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
-          </div>
+          <TouchableOpacity
+            onPress={() => setIsEstimate(!isEstimate)}
+            className="bg-white border border-gray-200 rounded-xl px-4 py-3 mb-2 flex-row items-center"
+          >
+            <View className={`w-5 h-5 rounded border-2 mr-3 items-center justify-center ${isEstimate ? 'bg-amber-400 border-amber-400' : 'border-gray-300'}`} />
+            <View className="flex-1">
+              <Text className="text-gray-900 text-sm font-medium">Estimated amount</Text>
+              <Text className="text-gray-400 text-xs">Mark this if the calories are an estimate</Text>
+            </View>
+          </TouchableOpacity>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Date</label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-            />
-          </div>
+          {error && <Text className="text-sm text-red-600 mt-3">{error}</Text>}
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <button
-            onClick={handleSubmit}
+          <TouchableOpacity
+            onPress={handleSubmit}
             disabled={isSaving}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold hover:shadow-lg disabled:opacity-50 transition-all"
+            className="bg-emerald-500 rounded-2xl py-4 items-center mt-5"
           >
             {isSaving ? (
-              'Saving...'
+              <ActivityIndicator color="#ffffff" />
             ) : (
-              <>
-                <CheckCircle className="w-5 h-5" />
-                {editingId ? 'Save Changes' : 'Add Food'}
-              </>
+              <Text className="text-white font-bold text-base">Save Food</Text>
             )}
-          </button>
-        </div>
-      </div>
-    </div>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+export function EditableFoodRow({ entry, onEdit }: { entry: FoodEntry; onEdit: () => void }) {
+  return (
+    <View className="bg-gray-50 rounded-xl p-3">
+      <View className="flex-row items-start justify-between">
+        <View className="flex-1 mr-2">
+          <Text className="font-semibold text-gray-900 text-sm">{entry.name}</Text>
+          <Text className="text-xs text-gray-500 mt-1">
+            {entry.calories} kcal
+            {entryIsEstimate(entry) ? ' · estimate' : ''}
+          </Text>
+        </View>
+        <TouchableOpacity onPress={onEdit} className="px-3 py-1.5 rounded-full bg-white border border-gray-200">
+          <Text className="text-blue-600 text-xs font-semibold">Edit</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }

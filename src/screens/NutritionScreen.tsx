@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import { ScrollView, View, Text, TouchableOpacity, TextInput } from 'react-native';
+import { ScrollView, View, Text, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Apple, Droplets, Calculator, Plus, Check, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Apple, Droplets, Calculator, Plus, ChevronDown, ChevronUp, Flame } from 'lucide-react-native';
 import { useApp } from '../context/AppContext';
-import { HydrationEntry } from '../types';
+import { HydrationEntry, FoodEntry } from '../types';
+import {
+  FoodEntryModal, EditableFoodRow, entryDateKey, entryMealType, todayKey,
+} from '../components/FoodEntryForm';
+import { MealType } from '../components/FoodEntryForm';
 
 type TabType = 'meals' | 'hydration' | 'calculator';
 
@@ -27,17 +31,72 @@ const mealPlan = {
   ],
 };
 
+const MEAL_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snacks'];
+
 const WATER_AMOUNTS = [250, 500, 750, 1000];
 
 export function NutritionScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('meals');
   const [expandedMeal, setExpandedMeal] = useState<string>('breakfast');
-  const { hydrationEntries, addHydrationEntry } = useApp();
+  const { hydrationEntries, addHydrationEntry, foodEntries, addFoodEntry, updateFoodEntry, deleteFoodEntry, saveError } = useApp();
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
   const [activityLevel, setActivityLevel] = useState<'light' | 'moderate' | 'active'>('moderate');
 
-  const todayEntries = hydrationEntries.filter(e => e.date === new Date().toISOString().split('T')[0]);
+  // Food logging state
+  const [formVisible, setFormVisible] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null);
+  const [presetMeal, setPresetMeal] = useState<MealType>('breakfast');
+
+  const today = todayKey();
+
+  const todayFoodEntries = foodEntries.filter((e) => entryDateKey(e) === today);
+  const todayCalories = todayFoodEntries.reduce((sum, e) => sum + (e.calories || 0), 0);
+
+  const entriesForMeal = (meal: MealType) =>
+    todayFoodEntries.filter((e) => entryMealType(e) === meal);
+
+  const openAddFood = (meal: MealType) => {
+    setEditingEntry(null);
+    setPresetMeal(meal);
+    setFormVisible(true);
+  };
+
+  const openEditFood = (entry: FoodEntry) => {
+    setEditingEntry(entry);
+    setPresetMeal(entryMealType(entry));
+    setFormVisible(true);
+  };
+
+  const handleFormSubmit = async (result: { name: string; calories: number; mealType: MealType; isEstimate: boolean }) => {
+    if (editingEntry) {
+      const ok = await updateFoodEntry(editingEntry.id, {
+        name: result.name,
+        calories: result.calories,
+        mealType: result.mealType,
+        isEstimate: result.isEstimate,
+        date: today,
+      });
+      return ok;
+    }
+    const created = await addFoodEntry({
+      date: today,
+      mealType: result.mealType,
+      name: result.name,
+      calories: result.calories,
+      isEstimate: result.isEstimate,
+    });
+    return created !== null;
+  };
+
+  const confirmDelete = (entry: FoodEntry) => {
+    Alert.alert('Delete Food', `Remove "${entry.name}" from today's log?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteFoodEntry(entry.id) },
+    ]);
+  };
+
+  const todayEntries = hydrationEntries.filter(e => e.date === today);
   const waterTotal = todayEntries.reduce((s, e) => s + e.amount, 0);
   const waterGoal = 2500;
   const waterPct = Math.min((waterTotal / waterGoal) * 100, 100);
@@ -45,7 +104,7 @@ export function NutritionScreen() {
   const handleAddWater = async (amount: number) => {
     const entry: HydrationEntry = {
       id: Date.now().toString(),
-      date: new Date().toISOString().split('T')[0],
+      date: today,
       amount,
       unit: 'ml',
       timestamp: new Date().toISOString(),
@@ -88,35 +147,86 @@ export function NutritionScreen() {
         {/* Meal Plan */}
         {activeTab === 'meals' && (
           <View className="gap-3">
-            {(Object.entries(mealPlan) as [string, typeof mealPlan.breakfast][]).map(([meal, items]) => (
-              <View key={meal} className="bg-white rounded-2xl overflow-hidden">
-                <TouchableOpacity
-                  onPress={() => setExpandedMeal(expandedMeal === meal ? '' : meal)}
-                  className="flex-row items-center justify-between p-4"
-                >
-                  <View className="flex-row items-center">
-                    <Apple size={18} color="#10b981" />
-                    <Text className="font-semibold text-gray-900 ml-2 capitalize">{meal}</Text>
-                  </View>
-                  {expandedMeal === meal ? <ChevronUp size={16} color="#94a3b8" /> : <ChevronDown size={16} color="#94a3b8" />}
-                </TouchableOpacity>
-                {expandedMeal === meal && (
-                  <View className="px-4 pb-4 gap-2">
-                    {items.map((item, i) => (
-                      <View key={i} className="bg-gray-50 rounded-xl p-3">
-                        <Text className="font-semibold text-gray-900 text-sm">{item.name}</Text>
-                        <View className="flex-row gap-3 mt-2">
-                          <Text className="text-xs text-gray-500">{item.calories} kcal</Text>
-                          <Text className="text-xs text-blue-500">{item.protein}g protein</Text>
-                          <Text className="text-xs text-amber-500">{item.carbs}g carbs</Text>
-                          <Text className="text-xs text-rose-500">{item.fat}g fat</Text>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                )}
+            {/* Daily total */}
+            <View className="bg-white rounded-2xl p-5 flex-row items-center">
+              <View className="w-11 h-11 rounded-2xl bg-orange-100 items-center justify-center mr-3">
+                <Flame size={22} color="#f97316" />
               </View>
-            ))}
+              <View className="flex-1">
+                <Text className="text-gray-500 text-xs">Today's logged calories</Text>
+                <Text className="text-2xl font-bold text-gray-900">{todayCalories} kcal</Text>
+              </View>
+              <Text className="text-gray-400 text-xs">{todayFoodEntries.length} item{todayFoodEntries.length === 1 ? '' : 's'}</Text>
+            </View>
+
+            {saveError && (
+              <View className="bg-red-50 rounded-2xl p-4">
+                <Text className="text-red-600 text-sm">{saveError}</Text>
+              </View>
+            )}
+
+            {MEAL_ORDER.map((meal) => {
+              const logged = entriesForMeal(meal);
+              const suggestions = mealPlan[meal];
+              return (
+                <View key={meal} className="bg-white rounded-2xl overflow-hidden">
+                  <TouchableOpacity
+                    onPress={() => setExpandedMeal(expandedMeal === meal ? '' : meal)}
+                    className="flex-row items-center justify-between p-4"
+                  >
+                    <View className="flex-row items-center">
+                      <Apple size={18} color="#10b981" />
+                      <Text className="font-semibold text-gray-900 ml-2 capitalize">{meal}</Text>
+                      {logged.length > 0 && (
+                        <View className="ml-2 bg-emerald-100 rounded-full px-2 py-0.5">
+                          <Text className="text-emerald-700 text-xs font-semibold">{logged.length}</Text>
+                        </View>
+                      )}
+                    </View>
+                    {expandedMeal === meal ? <ChevronUp size={16} color="#94a3b8" /> : <ChevronDown size={16} color="#94a3b8" />}
+                  </TouchableOpacity>
+                  {expandedMeal === meal && (
+                    <View className="px-4 pb-4 gap-2">
+                      {/* Logged entries */}
+                      {logged.map((entry) => (
+                        <View key={entry.id}>
+                          <EditableFoodRow entry={entry} onEdit={() => openEditFood(entry)} />
+                          <TouchableOpacity
+                            onPress={() => confirmDelete(entry)}
+                            className="absolute right-2 bottom-2 px-2 py-1"
+                          >
+                            <Text className="text-red-500 text-xs font-semibold">Delete</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+
+                      {/* Add Food button */}
+                      <TouchableOpacity
+                        onPress={() => openAddFood(meal)}
+                        className="border-2 border-dashed border-emerald-200 rounded-xl p-3 flex-row items-center justify-center"
+                      >
+                        <Plus size={16} color="#10b981" />
+                        <Text className="text-emerald-600 font-semibold text-sm ml-1">Add Food</Text>
+                      </TouchableOpacity>
+
+                      {/* Suggestions */}
+                      <Text className="text-xs text-gray-400 mt-2 mb-1">Suggestions</Text>
+                      {suggestions.map((item, i) => (
+                        <View key={i} className="bg-gray-50 rounded-xl p-3">
+                          <Text className="font-semibold text-gray-900 text-sm">{item.name}</Text>
+                          <View className="flex-row gap-3 mt-2">
+                            <Text className="text-xs text-gray-500">{item.calories} kcal</Text>
+                            <Text className="text-xs text-blue-500">{item.protein}g protein</Text>
+                            <Text className="text-xs text-amber-500">{item.carbs}g carbs</Text>
+                            <Text className="text-xs text-rose-500">{item.fat}g fat</Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
           </View>
         )}
 
@@ -233,6 +343,23 @@ export function NutritionScreen() {
           </View>
         )}
       </ScrollView>
+
+      <FoodEntryModal
+        key={`${editingEntry?.id ?? 'new'}-${presetMeal}-${formVisible}`}
+        visible={formVisible}
+        onClose={() => setFormVisible(false)}
+        initial={
+          editingEntry
+            ? {
+                name: editingEntry.name,
+                calories: editingEntry.calories,
+                mealType: presetMeal,
+                isEstimate: Boolean(editingEntry.isEstimate),
+              }
+            : { mealType: presetMeal }
+        }
+        onSubmit={handleFormSubmit}
+      />
     </SafeAreaView>
   );
 }

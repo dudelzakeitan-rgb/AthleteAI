@@ -6,20 +6,73 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   ChevronLeft, CheckCircle, Target, TrendingUp, Calendar,
-  Waves, Dumbbell, Apple, Trophy, Save, ArrowRight, Activity,
+  Waves, Dumbbell, Apple, Trophy, Save, ArrowRight, Activity, Sparkles,
 } from 'lucide-react-native';
-import { sportsConfig, TrainingPlan, ProgressEntry } from '../types';
+import { sportsConfig, TrainingPlan, ProgressEntry, WaterDrill, DrylandExercise } from '../types';
 import { useApp } from '../context/AppContext';
 import { generateTrainingPlan } from '../lib/trainingGenerator';
+import { generateWorkout, GeneratedExercise } from '../lib/workoutApi';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'PlanPreview'>;
 
+const DIFFICULTY_BY_LEVEL: Record<string, 'easy' | 'medium' | 'hard'> = {
+  beginner: 'easy',
+  intermediate: 'medium',
+  advanced: 'hard',
+};
+
+/** Maps AI-generated exercises onto the plan structure, matching the web implementation. */
+function applyAiExercises(plan: TrainingPlan, exercises: GeneratedExercise[], skillLevel: string): TrainingPlan {
+  const fallbackDifficulty = DIFFICULTY_BY_LEVEL[skillLevel] || 'medium';
+
+  const mainSet: WaterDrill[] = exercises
+    .filter(ex => ex.type === 'sport' || ex.type === 'cardio')
+    .map(ex => ({
+      name: ex.name,
+      distance: ex.duration || ex.reps,
+      repetitions: ex.sets,
+      rest: ex.rest,
+      technique: ex.description,
+      difficulty: fallbackDifficulty,
+    }));
+
+  const byType = (type: 'strength' | 'core' | 'mobility'): DrylandExercise[] =>
+    exercises
+      .filter(ex => ex.type === type)
+      .map(ex => ({
+        name: ex.name,
+        type,
+        sets: ex.sets,
+        reps: ex.duration || ex.reps,
+        description: ex.description,
+        difficulty: fallbackDifficulty,
+      }));
+
+  const strength = byType('strength');
+  const core = byType('core');
+  const mobility = byType('mobility');
+
+  if (mainSet.length > 0) {
+    plan.waterTraining.mainSet = mainSet;
+  }
+  if (strength.length > 0) {
+    plan.drylandTraining.strength = strength;
+  }
+  if (core.length > 0) {
+    plan.drylandTraining.core = core;
+  }
+  if (mobility.length > 0) {
+    plan.drylandTraining.mobility = mobility;
+  }
+  return plan;
+}
+
 export function PlanPreviewScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
-  const { questionnaire, setCurrentPlan, addProgressEntry } = useApp();
+  const { questionnaire, setCurrentPlan, addProgressEntry, session } = useApp();
   const { sportId, improvementId } = route.params;
 
   const [plan, setPlan] = useState<TrainingPlan | null>(null);
@@ -37,8 +90,27 @@ export function PlanPreviewScreen() {
       });
       setPlan(generated);
       setCurrentPlan(generated);
+
+      if (session) {
+        generateWorkout(sport.id, questionnaire.goal, {
+          skillLevel: questionnaire.skillLevel,
+          sessionsPerWeek: questionnaire.sessionsPerWeek,
+          sessionMinutes: questionnaire.trainingDuration,
+          equipment: questionnaire.equipment,
+          notes: `Weakness: ${questionnaire.weakness}. Improvement focus: ${improvement.label}.`,
+        })
+          .then(exercises => {
+            const aiPlan = applyAiExercises(generated, exercises, questionnaire.skillLevel);
+            setPlan({ ...aiPlan });
+            setCurrentPlan({ ...aiPlan });
+          })
+          .catch(() => {
+            // Keep the static template plan on AI failure
+          });
+      }
     }
-  }, [questionnaire, sport, improvement]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionnaire, sport, improvement, session]);
 
   if (!plan || !questionnaire || !sport || !improvement) {
     return (
@@ -134,9 +206,10 @@ export function PlanPreviewScreen() {
               <View className="w-9 h-9 rounded-xl bg-blue-100 items-center justify-center mr-3">
                 {sport.id === 'swimming' ? <Waves size={18} color="#3b82f6" /> : <Activity size={18} color="#3b82f6" />}
               </View>
-              <Text className="font-bold text-gray-900 text-base">
+              <Text className="font-bold text-gray-900 text-base flex-1">
                 {sport.id === 'swimming' ? 'Water Training' : sport.id === 'gym' ? 'Gym Workout' : `${sport.name} Training`}
               </Text>
+              <Sparkles size={16} color="#f59e0b" />
             </View>
             {[
               { label: 'Warm-up', drills: plan.waterTraining.warmup },
@@ -232,7 +305,7 @@ export function PlanPreviewScreen() {
             disabled={savedToDashboard}
             activeOpacity={0.85}
           >
-            <View className={`rounded-2xl py-4 flex-row items-center justify-center ${savedToDashboard ? 'bg-emerald-500' : 'bg-emerald-500'}`}>
+            <View className="rounded-2xl py-4 flex-row items-center justify-center bg-emerald-500">
               {savedToDashboard ? (
                 <>
                   <CheckCircle size={18} color="#ffffff" />

@@ -2,12 +2,15 @@ import { useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, TextInput, FlatList, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Send, Bot, User } from 'lucide-react-native';
+import { Send, Bot, User, Apple } from 'lucide-react-native';
 import { useApp } from '../context/AppContext';
 import { ChatMessage } from '../types';
-import { askCoach } from '../lib/coachApi';
+import { askCoach, toCoachPreferences } from '../lib/coachApi';
 import { useSupabaseSession } from '../hooks/useSupabaseSession';
 import { CoachSignInForm } from '../components/CoachSignInForm';
+import {
+  FoodEntryModal, parseMealMarker, stripMealMarker, MealType,
+} from '../components/FoodEntryForm';
 
 const MAX_HISTORY_MESSAGES = 12;
 
@@ -18,12 +21,25 @@ const SUGGESTIONS = [
   'What exercises help with injury prevention?',
 ];
 
+interface ParsedMeal {
+  name: string;
+  calories: number;
+}
+
+function mealForMessage(messages: ChatMessage[], messageId: string): ParsedMeal | null {
+  const msg = messages.find(m => m.id === messageId);
+  return msg ? parseMealMarker(msg.content) : null;
+}
+
 export function AICoachScreen() {
-  const { chatMessages, addChatMessage } = useApp();
+  const { chatMessages, addChatMessage, preferences, addFoodEntry } = useApp();
   const { session, isLoading: isSessionLoading } = useSupabaseSession();
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formVisible, setFormVisible] = useState(false);
+  const [parsedMeal, setParsedMeal] = useState<ParsedMeal | null>(null);
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
   const sendMessage = async (text: string) => {
@@ -43,10 +59,11 @@ export function AICoachScreen() {
     addChatMessage(userMsg);
     setInput('');
     setError(null);
+    setSaveNotice(null);
     setIsTyping(true);
 
     try {
-      const reply = await askCoach(history);
+      const reply = await askCoach(history, toCoachPreferences(preferences));
       addChatMessage({
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -58,6 +75,27 @@ export function AICoachScreen() {
     } finally {
       setIsTyping(false);
     }
+  };
+
+  const handleAddToNutrition = (meal: ParsedMeal) => {
+    setParsedMeal(meal);
+    setSaveNotice(null);
+    setFormVisible(true);
+  };
+
+  const handleFormSubmit = async (result: { name: string; calories: number; mealType: MealType; isEstimate: boolean }) => {
+    const created = await addFoodEntry({
+      date: new Date().toISOString().split('T')[0],
+      mealType: result.mealType,
+      name: result.name,
+      calories: result.calories,
+      isEstimate: result.isEstimate,
+    });
+    if (created) {
+      setSaveNotice(`"${result.name}" added to your Nutrition log.`);
+      return true;
+    }
+    return false;
   };
 
   const allMessages: ChatMessage[] = chatMessages.length === 0
@@ -123,30 +161,47 @@ export function AICoachScreen() {
               </View>
             ) : null
           }
-          renderItem={({ item }) => (
-            <View className={`flex-row items-start mb-4 ${item.role === 'user' ? 'justify-end' : ''}`}>
-              {item.role === 'assistant' && (
-                <View className="w-8 h-8 rounded-full bg-blue-100 items-center justify-center mr-2 mt-1">
-                  <Bot size={16} color="#3b82f6" />
+          renderItem={({ item }) => {
+            const meal = item.role === 'assistant' ? parseMealMarker(item.content) : null;
+            const visibleContent = item.role === 'assistant' ? stripMealMarker(item.content) : item.content;
+            if (item.role === 'assistant' && !visibleContent.trim() && !meal) return null;
+            return (
+              <View className={`flex-row items-start mb-4 ${item.role === 'user' ? 'justify-end' : ''}`}>
+                {item.role === 'assistant' && (
+                  <View className="w-8 h-8 rounded-full bg-blue-100 items-center justify-center mr-2 mt-1">
+                    <Bot size={16} color="#3b82f6" />
+                  </View>
+                )}
+                <View style={{ maxWidth: '75%' }}>
+                  <View
+                    className={`rounded-2xl px-4 py-3 shadow-sm ${
+                      item.role === 'user' ? 'bg-blue-500' : 'bg-white'
+                    }`}
+                  >
+                    <Text className={`text-sm leading-relaxed ${item.role === 'user' ? 'text-white' : 'text-gray-800'}`}>
+                      {visibleContent}
+                    </Text>
+                  </View>
+                  {meal && (
+                    <TouchableOpacity
+                      onPress={() => handleAddToNutrition(meal)}
+                      className="mt-2 bg-emerald-500 rounded-xl px-4 py-2.5 flex-row items-center"
+                    >
+                      <Apple size={15} color="#ffffff" />
+                      <Text className="text-white font-semibold text-sm ml-2">
+                        Add to Nutrition ({meal.calories} kcal)
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-              )}
-              <View
-                className={`max-w-xs rounded-2xl px-4 py-3 shadow-sm ${
-                  item.role === 'user' ? 'bg-blue-500' : 'bg-white'
-                }`}
-                style={{ maxWidth: '75%' }}
-              >
-                <Text className={`text-sm leading-relaxed ${item.role === 'user' ? 'text-white' : 'text-gray-800'}`}>
-                  {item.content}
-                </Text>
+                {item.role === 'user' && (
+                  <View className="w-8 h-8 rounded-full bg-blue-500 items-center justify-center ml-2 mt-1">
+                    <User size={16} color="#ffffff" />
+                  </View>
+                )}
               </View>
-              {item.role === 'user' && (
-                <View className="w-8 h-8 rounded-full bg-blue-500 items-center justify-center ml-2 mt-1">
-                  <User size={16} color="#ffffff" />
-                </View>
-              )}
-            </View>
-          )}
+            );
+          }}
         />
 
         {/* Suggestions */}
@@ -154,6 +209,12 @@ export function AICoachScreen() {
           <View className="px-4 mb-2">
             <Text className="text-xs text-gray-400 mb-2">Suggested topics</Text>
             <ScrollableChips items={SUGGESTIONS} onSelect={sendMessage} />
+          </View>
+        )}
+
+        {saveNotice && (
+          <View className="mx-4 mb-2 bg-emerald-50 rounded-xl px-4 py-3">
+            <Text className="text-emerald-700 text-sm">{saveNotice}</Text>
           </View>
         )}
 
@@ -181,6 +242,18 @@ export function AICoachScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      <FoodEntryModal
+        key={`coach-meal-${formVisible}`}
+        visible={formVisible}
+        onClose={() => setFormVisible(false)}
+        initial={
+          parsedMeal
+            ? { name: parsedMeal.name, calories: parsedMeal.calories, mealType: 'lunch' as MealType, isEstimate: true }
+            : undefined
+        }
+        onSubmit={handleFormSubmit}
+      />
     </SafeAreaView>
   );
 }
